@@ -28,3 +28,6 @@ vestaboard_agent-*.tar
 .env
 
 /.claude/
+
+# Persisted Lua tool scripts (runtime data, not source)
+/priv/lua_tools/*.lua
