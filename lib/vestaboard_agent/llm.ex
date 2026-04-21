@@ -142,11 +142,38 @@ defmodule VestaboardAgent.LLM do
     You are generating a Lua script for a Vestaboard LED display (6 rows × 22 columns).
 
     Script contract:
-    - Receives a global `context` table with context.now (ISO-8601 UTC timestamp string)
+    - Receives a global `context` table:
+        context.now  — ISO-8601 UTC timestamp string (e.g. "2024-06-15T12:00:00Z")
     - Must return a single string; newlines split it into rows
     - Each line should be 22 characters or fewer
     - Total content should fit within 6 rows
-    - No HTTP calls, file I/O, or require() — only Lua standard library computation
+    - No require(), no file I/O, no os.*
+
+    Available built-in functions (always present, no require needed):
+
+      vestaboard.http_get(url)
+        Makes an HTTP GET request.
+        Returns: body (string), status (integer)
+        Example:
+          local body, status = vestaboard.http_get("https://api.example.com/data")
+          if status ~= 200 then return "unavailable" end
+
+      vestaboard.http_post(url, body)
+        Makes an HTTP POST request with a string body.
+        Returns: body (string), status (integer)
+
+      vestaboard.json_decode(str)
+        Parses a JSON string into a Lua table.
+        Returns: table (or nil on parse error)
+        Example:
+          local data = vestaboard.json_decode(body)
+          return data.temperature .. "F"
+
+      vestaboard.truncate(str, len)
+        Truncates a string to at most len characters.
+
+      vestaboard.log(msg)
+        Logs a debug message (no effect on display).
 
     Task: #{task_description}
 
