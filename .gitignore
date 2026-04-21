@@ -26,3 +26,5 @@ vestaboard_agent-*.tar
 /tmp/
 
 .env
+
+.claude
