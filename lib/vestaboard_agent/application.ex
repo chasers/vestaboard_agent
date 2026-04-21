@@ -9,6 +9,7 @@ defmodule VestaboardAgent.Application do
       VestaboardAgent.Dispatcher,
       VestaboardAgent.Scheduler,
       VestaboardAgent.ToolRegistry,
+      VestaboardAgent.AgentSupervisor,
       VestaboardAgent.Agent.Registry
     ]
 
