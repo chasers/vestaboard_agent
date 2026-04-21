@@ -53,7 +53,7 @@ Turn the pipeline from a diagram into running code.
 | | Item | Notes |
 |---|---|---|
 | ✅ | First real agent — `ScheduleAgent` | Runs a tool on a cron schedule (Quantum) |
-| ⬜ | `ToolRegistry` — store and retrieve tools by name | Includes persisted Lua scripts |
+| ✅ | `ToolRegistry` — store and retrieve tools by name | Includes persisted Lua scripts |
 | ⬜ | LLM-backed dynamic tool generation | Agent writes a Lua script when no tool matches |
 | ⬜ | Long-running agent lifecycle | Supervisor keeps `:running` agents alive; supports cancellation |
 | ⬜ | Natural language prompt routing | LLM picks the right agent from a prompt |

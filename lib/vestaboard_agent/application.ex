@@ -8,6 +8,7 @@ defmodule VestaboardAgent.Application do
     children = [
       VestaboardAgent.Dispatcher,
       VestaboardAgent.Scheduler,
+      VestaboardAgent.ToolRegistry,
       VestaboardAgent.Agent.Registry
     ]
 
