@@ -17,6 +17,11 @@ defmodule VestaboardAgent.Agents.GreeterTest do
     :ok
   end
 
+  defp stub_req(fun) do
+    Req.Test.stub(__MODULE__, fun)
+    Req.Test.allow(__MODULE__, self(), Process.whereis(VestaboardAgent.Dispatcher))
+  end
+
   test "name/0 returns a string" do
     assert is_binary(Greeter.name())
   end
@@ -32,26 +37,17 @@ defmodule VestaboardAgent.Agents.GreeterTest do
   end
 
   test "handle/2 dispatches to the board and returns :done" do
-    Req.Test.stub(__MODULE__, fn conn ->
-      Req.Test.json(conn, %{"id" => "msg-1"})
-    end)
-
+    stub_req(fn conn -> Req.Test.json(conn, %{"id" => "msg-1"}) end)
     assert {:ok, :done} = Greeter.handle("say hello", %{})
   end
 
   test "handle/2 injects current time when context has no :now" do
-    Req.Test.stub(__MODULE__, fn conn ->
-      Req.Test.json(conn, %{"id" => "msg-2"})
-    end)
-
+    stub_req(fn conn -> Req.Test.json(conn, %{"id" => "msg-2"}) end)
     assert {:ok, :done} = Greeter.handle("greet me", %{})
   end
 
   test "handle/2 returns error when dispatch fails" do
-    Req.Test.stub(__MODULE__, fn conn ->
-      Plug.Conn.send_resp(conn, 503, "unavailable")
-    end)
-
+    stub_req(fn conn -> Plug.Conn.send_resp(conn, 503, "unavailable") end)
     assert {:error, _} = Greeter.handle("hello", %{})
   end
 end

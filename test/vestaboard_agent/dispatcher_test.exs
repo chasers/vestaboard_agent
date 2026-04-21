@@ -19,35 +19,34 @@ defmodule VestaboardAgent.DispatcherTest do
     :ok
   end
 
+  # Req.Test stubs are process-local. Because Dispatcher is a GenServer, the
+  # HTTP call runs in its process, not the test process. Call allow/3 after
+  # every stub so the Dispatcher can see the current test's stub.
+  defp stub_req(fun) do
+    Req.Test.stub(__MODULE__, fun)
+    Req.Test.allow(__MODULE__, self(), Process.whereis(Dispatcher))
+  end
+
   describe "dispatch/2 with a grid" do
     test "sends the grid directly to the client" do
-      Req.Test.stub(__MODULE__, fn conn ->
-        Req.Test.json(conn, %{"id" => "msg-1"})
-      end)
-
+      stub_req(fn conn -> Req.Test.json(conn, %{"id" => "msg-1"}) end)
       assert {:ok, %{"id" => "msg-1"}} = Dispatcher.dispatch(@grid)
     end
 
     test "returns http error on failure" do
-      Req.Test.stub(__MODULE__, fn conn ->
-        Plug.Conn.send_resp(conn, 503, "unavailable")
-      end)
-
+      stub_req(fn conn -> Plug.Conn.send_resp(conn, 503, "unavailable") end)
       assert {:error, {:http, 503}} = Dispatcher.dispatch(@grid)
     end
   end
 
   describe "dispatch/2 with text" do
     test "renders text then sends to the client" do
-      Req.Test.stub(__MODULE__, fn conn ->
-        Req.Test.json(conn, %{"id" => "msg-2"})
-      end)
-
+      stub_req(fn conn -> Req.Test.json(conn, %{"id" => "msg-2"}) end)
       assert {:ok, _} = Dispatcher.dispatch("Hello World")
     end
 
     test "passes align option to renderer" do
-      Req.Test.stub(__MODULE__, fn conn ->
+      stub_req(fn conn ->
         {:ok, body, conn} = Plug.Conn.read_body(conn)
         decoded = Jason.decode!(body)
         # first row should start with H=8 when left-aligned
@@ -77,15 +76,37 @@ defmodule VestaboardAgent.DispatcherTest do
     end
 
     test "runs a tool then dispatches the result" do
-      Req.Test.stub(__MODULE__, fn conn ->
-        Req.Test.json(conn, %{"id" => "msg-4"})
-      end)
-
+      stub_req(fn conn -> Req.Test.json(conn, %{"id" => "msg-4"}) end)
       assert {:ok, _} = Dispatcher.dispatch_tool(StubTool)
     end
 
     test "returns error when the tool fails" do
       assert {:error, :tool_failed} = Dispatcher.dispatch_tool(FailingTool)
+    end
+  end
+
+  describe "dispatch_async/2" do
+    test "returns :ok immediately without waiting for the write" do
+      stub_req(fn conn -> Req.Test.json(conn, %{"id" => "async-1"}) end)
+      assert :ok = Dispatcher.dispatch_async("hello")
+      # issue a sync call to flush the cast through the GenServer before the test exits
+      stub_req(fn conn -> Req.Test.json(conn, %{"id" => "flush"}) end)
+      Dispatcher.dispatch("", [])
+    end
+
+    test "drops the message when TTL has already expired" do
+      parent = self()
+      stub_req(fn conn ->
+        send(parent, :http_called)
+        Req.Test.json(conn, %{"id" => "should-not-happen"})
+      end)
+
+      Dispatcher.dispatch_async("stale message", ttl: -1)
+      # sync flush so the cast is processed before we assert
+      stub_req(fn conn -> Req.Test.json(conn, %{}) end)
+      Dispatcher.dispatch("", [])
+
+      refute_received :http_called
     end
   end
 end

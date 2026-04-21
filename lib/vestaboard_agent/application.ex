@@ -6,6 +6,8 @@ defmodule VestaboardAgent.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      VestaboardAgent.Dispatcher,
+      VestaboardAgent.Scheduler,
       VestaboardAgent.Agent.Registry
     ]
 

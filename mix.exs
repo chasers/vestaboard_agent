@@ -27,6 +27,7 @@ defmodule VestaboardAgent.MixProject do
       {:lua, "~> 0.4.0"},
       {:req, "~> 0.5"},
       {:jason, "~> 1.4"},
+      {:quantum, "~> 3.0"},
       {:plug, "~> 1.0", only: :test},
       {:excoveralls, "~> 0.18", only: :test}
     ]
