@@ -34,6 +34,22 @@ defmodule VestaboardAgent.LLM do
     end
   end
 
+  @doc """
+  Ask the LLM which registered agent should handle `prompt`.
+
+  `agents_meta` is a list of `{name_string, keywords_list}` tuples built from
+  the registered agents. Returns `{:ok, agent_name_string}` or `{:error, reason}`.
+  The returned name is always downcased and trimmed.
+  """
+  @spec route_agent(String.t(), [{String.t(), [String.t()]}], keyword()) ::
+          {:ok, String.t()} | {:error, term()}
+  def route_agent(prompt, agents_meta, opts \\ []) do
+    with {:ok, api_key} <- api_key(),
+         {:ok, name} <- call_api(api_key, model(), routing_prompt(prompt, agents_meta), opts) do
+      {:ok, name |> String.trim() |> String.downcase()}
+    end
+  end
+
   # --- Private ---
 
   defp api_key do
@@ -84,6 +100,28 @@ defmodule VestaboardAgent.LLM do
       nil -> base
       plug -> Req.merge(base, plug: plug)
     end
+  end
+
+  defp routing_prompt(prompt, agents_meta) do
+    agent_list =
+      agents_meta
+      |> Enum.map(fn
+        {name, []} -> "- #{name}"
+        {name, kws} -> "- #{name}: #{Enum.join(kws, ", ")}"
+      end)
+      |> Enum.join("\n")
+
+    """
+    Route this user request to the correct handler for a Vestaboard display.
+
+    User prompt: "#{prompt}"
+
+    Available handlers:
+    #{agent_list}
+
+    Reply with ONLY the handler name that best matches.
+    If none fit well, reply with "dynamic".
+    """
   end
 
   defp script_prompt(task_description) do

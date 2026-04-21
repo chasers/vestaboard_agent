@@ -55,4 +55,50 @@ defmodule VestaboardAgent.LLMTest do
     opts = opts_with_stub(fn -> stub_response() end)
     assert {:ok, _} = LLM.generate_tool_script("task", opts)
   end
+
+  describe "route_agent/3" do
+    @agents_meta [{"greeter", ["hello", "greet"]}, {"clock", ["time", "clock"]}]
+
+    test "returns the agent name from the LLM response" do
+      opts = opts_with_stub(fn ->
+        %{"content" => [%{"type" => "text", "text" => "greeter"}]}
+      end)
+
+      assert {:ok, "greeter"} = LLM.route_agent("say hi", @agents_meta, opts)
+    end
+
+    test "downcases and trims the returned name" do
+      opts = opts_with_stub(fn ->
+        %{"content" => [%{"type" => "text", "text" => "  Greeter  "}]}
+      end)
+
+      assert {:ok, "greeter"} = LLM.route_agent("say hi", @agents_meta, opts)
+    end
+
+    test "returns dynamic when the LLM says dynamic" do
+      opts = opts_with_stub(fn ->
+        %{"content" => [%{"type" => "text", "text" => "dynamic"}]}
+      end)
+
+      assert {:ok, "dynamic"} = LLM.route_agent("do something odd", @agents_meta, opts)
+    end
+
+    test "returns missing_api_key when no key configured" do
+      original = Application.get_env(:vestaboard_agent, :llm, [])
+      on_exit(fn -> Application.put_env(:vestaboard_agent, :llm, original) end)
+      Application.put_env(:vestaboard_agent, :llm, api_key: nil)
+      System.delete_env("ANTHROPIC_API_KEY")
+
+      assert {:error, :missing_api_key} = LLM.route_agent("test", @agents_meta)
+    end
+
+    test "handles agents with no keywords" do
+      agents_meta = [{"dynamic", []}, {"greeter", ["hello"]}]
+      opts = opts_with_stub(fn ->
+        %{"content" => [%{"type" => "text", "text" => "greeter"}]}
+      end)
+
+      assert {:ok, "greeter"} = LLM.route_agent("say hello", agents_meta, opts)
+    end
+  end
 end

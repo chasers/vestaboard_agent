@@ -1,19 +1,25 @@
 defmodule VestaboardAgent.Agent.Registry do
   @moduledoc """
-  GenServer that holds registered agents and routes prompts to them.
+  Routes prompts to agents via keyword matching with an LLM fallback.
 
-  Agents are matched by keyword: the first registered agent whose keywords
-  list contains any word from the prompt wins.
+  ## Routing order
 
-  Built-in agents are registered at startup. Additional agents can be
-  registered at runtime via `register/1`.
+  1. **Keyword match** — first registered agent whose keywords appear in the prompt wins.
+  2. **LLM routing** — if no keyword match, the LLM picks an agent from the registered list.
+     Requires `ANTHROPIC_API_KEY` (or config). If not configured, skips to step 3.
+  3. **DynamicAgent** — LLM generates a Lua tool for the prompt on the fly.
+
+  Pass `llm_opts:` in the context map to inject test stubs into LLM calls:
+
+      Registry.handle("show btc price", %{llm_opts: [plug: {Req.Test, MyTest}]})
   """
 
   use GenServer
 
-  alias VestaboardAgent.Agents.Greeter
+  alias VestaboardAgent.Agents.{DynamicAgent, Greeter}
+  alias VestaboardAgent.LLM
 
-  @default_agents [Greeter]
+  @default_agents [Greeter, DynamicAgent]
 
   # --- Public API ---
 
@@ -34,7 +40,7 @@ defmodule VestaboardAgent.Agent.Registry do
   end
 
   @doc """
-  Find the first agent whose keywords match the prompt.
+  Find the first agent whose keywords match the prompt (keyword-only, no LLM).
 
   Returns `{:ok, module}` or `{:error, :no_match}`.
   """
@@ -44,13 +50,36 @@ defmodule VestaboardAgent.Agent.Registry do
   end
 
   @doc """
-  Route a prompt to an agent and call `handle/2` with the given context.
+  Route a prompt to an agent and call `handle/2`.
+
+  Falls back to LLM routing when no keyword match is found, then to
+  `DynamicAgent`. Returns `{:error, :no_match}` only when no API key
+  is configured and keyword matching also fails.
   """
   @spec handle(String.t(), map()) ::
           {:ok, :done} | {:ok, :running, term()} | {:error, term()}
   def handle(prompt, context \\ %{}) do
-    with {:ok, agent} <- route(prompt) do
-      agent.handle(prompt, context)
+    case route(prompt) do
+      {:ok, agent} ->
+        agent.handle(prompt, context)
+
+      {:error, :no_match} ->
+        llm_opts = Map.get(context, :llm_opts, [])
+        agents_meta = Enum.map(agents(), fn a -> {a.name(), a.keywords()} end)
+
+        case LLM.route_agent(prompt, agents_meta, llm_opts) do
+          {:ok, name} ->
+            case find_by_name(name) do
+              {:ok, agent} -> agent.handle(prompt, context)
+              :error -> DynamicAgent.handle(prompt, context)
+            end
+
+          {:error, :missing_api_key} ->
+            {:error, :no_match}
+
+          {:error, _} ->
+            DynamicAgent.handle(prompt, context)
+        end
     end
   end
 
@@ -75,13 +104,19 @@ defmodule VestaboardAgent.Agent.Registry do
 
     result =
       Enum.find_value(agents, {:error, :no_match}, fn agent ->
-        match? =
-          agent.keywords()
-          |> Enum.any?(&String.contains?(normalized, String.downcase(&1)))
-
+        match? = Enum.any?(agent.keywords(), &String.contains?(normalized, String.downcase(&1)))
         if match?, do: {:ok, agent}
       end)
 
     {:reply, result, agents}
+  end
+
+  # --- Private ---
+
+  defp find_by_name(name) do
+    case Enum.find(agents(), fn a -> a.name() == name end) do
+      nil -> :error
+      agent -> {:ok, agent}
+    end
   end
 end
