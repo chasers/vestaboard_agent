@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh repo *)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:hexdocs.pm)",
+      "WebFetch(domain:hex.pm)",
+      "Bash(mix *)",
+      "WebFetch(domain:docs.vestaboard.com)",
+      "Bash(ping *)",
+      "Bash(dns-sd -G v4 vestaboard-083d7e78.local)",
+      "Bash(kill %1)",
+      "Bash(wait)",
+      "Bash(arp -a)",
+      "Bash(dscacheutil *)",
+      "Bash(ipconfig getifaddr *)"
+    ]
+  }
+}
