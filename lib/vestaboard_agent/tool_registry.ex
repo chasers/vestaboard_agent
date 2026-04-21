@@ -102,12 +102,11 @@ defmodule VestaboardAgent.ToolRegistry do
   end
 
   def handle_call({:register_script, name, script}, _from, state) do
-    case write_script(state.scripts_dir, name, script) do
-      :ok ->
-        {:reply, :ok, put_in(state, [:tools, name], {:script, script})}
-
-      {:error, _} = err ->
-        {:reply, err, state}
+    with :ok <- validate_script(script),
+         :ok <- write_script(state.scripts_dir, name, script) do
+      {:reply, :ok, put_in(state, [:tools, name], {:script, script})}
+    else
+      {:error, _} = err -> {:reply, err, state}
     end
   end
 
@@ -166,6 +165,13 @@ defmodule VestaboardAgent.ToolRegistry do
       name = path |> Path.basename(".lua") |> String.to_atom()
       {name, {:script, File.read!(path)}}
     end)
+  end
+
+  defp validate_script(script) do
+    case LuaTool.run(script, %{now: "2024-01-01T00:00:00Z"}) do
+      {:error, "Failed to compile Lua!" <> _} = err -> err
+      _ -> :ok
+    end
   end
 
   defp write_script(dir, name, script) do

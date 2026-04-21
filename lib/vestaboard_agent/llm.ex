@@ -82,8 +82,12 @@ defmodule VestaboardAgent.LLM do
            }
          ) do
       {:ok, %{status: 200, body: body}} ->
-        script = get_in(body, ["content", Access.at(0), "text"])
-        {:ok, String.trim(script)}
+        script =
+          body
+          |> get_in(["content", Access.at(0), "text"])
+          |> strip_fences()
+
+        {:ok, script}
 
       {:ok, %{status: status}} ->
         {:error, {:http, status}}
@@ -99,6 +103,15 @@ defmodule VestaboardAgent.LLM do
     case opts[:plug] do
       nil -> base
       plug -> Req.merge(base, plug: plug)
+    end
+  end
+
+  defp strip_fences(text) do
+    trimmed = String.trim(text)
+
+    case Regex.run(~r/^```(?:lua)?\n(.*?)\n?```$/s, trimmed) do
+      [_, code] -> String.trim(code)
+      nil -> trimmed
     end
   end
 

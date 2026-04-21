@@ -40,6 +40,28 @@ defmodule VestaboardAgent.ToolRegistryTest do
       assert File.exists?(Path.join(dir, "greet.lua"))
       assert File.read!(Path.join(dir, "greet.lua")) == @hello_script
     end
+
+    test "rejects scripts with Lua syntax errors", %{registry: reg} do
+      assert {:error, "Failed to compile Lua!" <> _} =
+               GenServer.call(reg, {:register_script, :bad, "this is not lua ```"})
+    end
+
+    test "rejects markdown-fenced scripts that were not stripped", %{registry: reg} do
+      fenced = "```lua\nreturn 'oops'\n```"
+      assert {:error, "Failed to compile Lua!" <> _} =
+               GenServer.call(reg, {:register_script, :bad_fenced, fenced})
+    end
+
+    test "accepts scripts that have runtime errors but valid syntax", %{registry: reg} do
+      # This script will error at runtime (bad arithmetic) but compiles fine
+      runtime_error_script = "return nil + 1"
+      assert :ok = GenServer.call(reg, {:register_script, :runtime_err, runtime_error_script})
+    end
+
+    test "does not persist an invalid script to disk", %{registry: reg, scripts_dir: dir} do
+      GenServer.call(reg, {:register_script, :bad, "not lua ```"})
+      refute File.exists?(Path.join(dir, "bad.lua"))
+    end
   end
 
   describe "unregister/1" do

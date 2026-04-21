@@ -31,6 +31,27 @@ defmodule VestaboardAgent.LLMTest do
     assert {:ok, "return 'hi'"} = LLM.generate_tool_script("show something", opts)
   end
 
+  test "strips ```lua ... ``` fences from the response" do
+    fenced = "```lua\nreturn 'hello'\n```"
+    response = %{"content" => [%{"type" => "text", "text" => fenced}]}
+    opts = opts_with_stub(fn -> response end)
+    assert {:ok, "return 'hello'"} = LLM.generate_tool_script("task", opts)
+  end
+
+  test "strips plain ``` fences from the response" do
+    fenced = "```\nreturn 'hello'\n```"
+    response = %{"content" => [%{"type" => "text", "text" => fenced}]}
+    opts = opts_with_stub(fn -> response end)
+    assert {:ok, "return 'hello'"} = LLM.generate_tool_script("task", opts)
+  end
+
+  test "leaves scripts without fences unchanged" do
+    plain = "return 'hello world'"
+    response = %{"content" => [%{"type" => "text", "text" => plain}]}
+    opts = opts_with_stub(fn -> response end)
+    assert {:ok, ^plain} = LLM.generate_tool_script("task", opts)
+  end
+
   test "returns http error on non-200 response" do
     opts = [plug: fn conn -> Plug.Conn.send_resp(conn, 401, "unauthorized") end]
     assert {:error, {:http, 401}} = LLM.generate_tool_script("task", opts)
