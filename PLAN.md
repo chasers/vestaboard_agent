@@ -41,10 +41,10 @@ Turn the pipeline from a diagram into running code.
 
 | | Tool | Description |
 |---|---|---|
-| ⬜ | `Weather` | Fetch current conditions from a weather API |
+| ✅ | `Weather` | Fetch current conditions from Open-Meteo (no API key) |
 | ⬜ | `Countdown` | Days/hours/minutes until a target datetime |
-| ⬜ | `Quote` | Rotating quotes from a local list |
-| ⬜ | `Clock` | Current time displayed on the board |
+| ✅ | `Quote` | Rotating quotes from a local list |
+| ✅ | `Clock` | Current time displayed on the board |
 
 ---
 
