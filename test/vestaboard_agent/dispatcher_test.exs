@@ -58,4 +58,34 @@ defmodule VestaboardAgent.DispatcherTest do
       assert {:ok, _} = Dispatcher.dispatch("Hello", align: :left)
     end
   end
+
+  describe "dispatch_tool/2" do
+    defmodule StubTool do
+      @behaviour VestaboardAgent.Tool
+      @impl true
+      def name, do: "stub"
+      @impl true
+      def run(_context), do: {:ok, "stub output"}
+    end
+
+    defmodule FailingTool do
+      @behaviour VestaboardAgent.Tool
+      @impl true
+      def name, do: "failing"
+      @impl true
+      def run(_context), do: {:error, :tool_failed}
+    end
+
+    test "runs a tool then dispatches the result" do
+      Req.Test.stub(__MODULE__, fn conn ->
+        Req.Test.json(conn, %{"id" => "msg-4"})
+      end)
+
+      assert {:ok, _} = Dispatcher.dispatch_tool(StubTool)
+    end
+
+    test "returns error when the tool fails" do
+      assert {:error, :tool_failed} = Dispatcher.dispatch_tool(FailingTool)
+    end
+  end
 end

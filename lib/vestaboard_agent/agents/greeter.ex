@@ -1,0 +1,27 @@
+defmodule VestaboardAgent.Agents.Greeter do
+  @moduledoc """
+  Displays a time-appropriate greeting on the board.
+
+  Triggered by prompts containing: greet, greeting, hello, good morning,
+  good afternoon, good evening.
+  """
+
+  @behaviour VestaboardAgent.Agent
+
+  alias VestaboardAgent.{Dispatcher, Tools.Greeting}
+
+  @impl true
+  def name, do: "greeter"
+
+  @impl true
+  def keywords, do: ["greet", "greeting", "hello", "good morning", "good afternoon", "good evening"]
+
+  @impl true
+  def handle(_prompt, context) do
+    ctx = Map.put_new(context, :now, DateTime.utc_now())
+
+    with {:ok, _} <- Dispatcher.dispatch_tool(Greeting, ctx) do
+      {:ok, :done}
+    end
+  end
+end

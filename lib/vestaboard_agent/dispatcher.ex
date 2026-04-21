@@ -27,4 +27,16 @@ defmodule VestaboardAgent.Dispatcher do
       Client.write_characters(grid)
     end
   end
+
+  @doc """
+  Run a tool then dispatch the result to the board.
+
+  Equivalent to `tool.run(context) |> dispatch()`.
+  """
+  @spec dispatch_tool(module(), map()) :: {:ok, map()} | {:error, term()}
+  def dispatch_tool(tool, context \\ %{}) do
+    with {:ok, text} <- tool.run(context) do
+      dispatch(text)
+    end
+  end
 end

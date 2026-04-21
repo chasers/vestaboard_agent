@@ -31,9 +31,9 @@ Turn the pipeline from a diagram into running code.
 |---|---|---|
 | ✅ | `Renderer` — convert a string to a 6×22 character grid | Local character map; word-wrap; center/left align |
 | ✅ | `Dispatcher` — send a rendered grid via `Client` | Accepts text or pre-rendered grid |
-| ⬜ | Wire `Tool → Renderer → Dispatcher` end-to-end | Prove the full path with `Greeting` tool live on the board |
-| ⬜ | `Agent.Registry` — map a prompt string to an agent module | Simple keyword match to start; LLM routing later |
-| ⬜ | Supervision tree — start registry + dispatcher under an OTP supervisor | |
+| ✅ | Wire `Tool → Renderer → Dispatcher` end-to-end | `Dispatcher.dispatch_tool/2`; `Greeter` agent proves full path |
+| ✅ | `Agent.Registry` — map a prompt string to an agent module | GenServer; keyword match; runtime registration |
+| ✅ | Supervision tree — start registry + dispatcher under an OTP supervisor | `VestaboardAgent.Application` |
 
 ---
 
