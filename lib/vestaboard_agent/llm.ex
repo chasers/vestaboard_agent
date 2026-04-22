@@ -300,20 +300,17 @@ defmodule VestaboardAgent.LLM do
     You are playing Snake on a 6-row × 22-column grid.
     Row 0 is the top row. Row 5 is the bottom row.
     Column 0 is the leftmost column. Column 21 is the rightmost.
+    Legend: H=head, B=body, F=food, .=empty
 
     #{ascii_board}
 
-    Legend: H=head, B=body, F=food, .=empty
+    The "Move options" above are pre-ranked by Manhattan distance to food.
+    Pick the option with the smallest resulting distance unless doing so
+    traps the snake (e.g. it would immediately box you into a dead end with
+    no exit). In that case, pick the next-closest option that keeps an
+    escape route open.
 
-    The board state above shows the head position, food position, and which
-    directions close the gap (row hint, col hint). Only the moves listed under
-    "Safe moves" are valid — any other move kills the snake immediately.
-
-    Choose the safe move that best closes the distance to the food, preferring
-    the direction that reduces the larger of the two gaps first. Avoid moves
-    that would box the snake in.
-
-    Reply with exactly one word: the chosen direction from the safe moves list.
+    Reply with exactly one word: the direction name (UP, DOWN, LEFT, or RIGHT).
     """
   end
 

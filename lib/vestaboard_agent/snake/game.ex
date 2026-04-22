@@ -65,14 +65,14 @@ defmodule VestaboardAgent.Snake.Game do
 
   @doc "Render the game state as an ASCII map for the LLM (H=head, B=body, F=food, .=empty)."
   @spec to_ascii(t()) :: String.t()
-  def to_ascii(%{snake: [head | body], food: food, direction: dir, score: score} = game) do
+  def to_ascii(%{snake: [head | _body], food: food, direction: dir, score: score} = game) do
     grid =
       for r <- 0..(@rows - 1) do
         for c <- 0..(@cols - 1) do
           pos = {r, c}
           cond do
             pos == head -> "H"
-            pos in body -> "B"
+            pos in game.snake -> "B"
             pos == food -> "F"
             true -> "."
           end
@@ -80,29 +80,33 @@ defmodule VestaboardAgent.Snake.Game do
         |> Enum.join()
       end
 
-    safe = safe_moves(game) |> Enum.map(&(&1 |> Atom.to_string() |> String.upcase())) |> Enum.join(", ")
-    board = Enum.join(grid, "\n")
-
     {hr, hc} = head
     {fr, fc} = food
-    row_hint = cond do
-      fr < hr -> "food is UP (decrease row)"
-      fr > hr -> "food is DOWN (increase row)"
-      true -> "same row"
-    end
-    col_hint = cond do
-      fc < hc -> "food is LEFT (decrease col)"
-      fc > hc -> "food is RIGHT (increase col)"
-      true -> "same col"
-    end
+    current_dist = abs(fr - hr) + abs(fc - hc)
+
+    move_analysis =
+      safe_moves(game)
+      |> Enum.map(fn dir_opt ->
+        {nr, nc} = step(head, dir_opt)
+        new_dist = abs(fr - nr) + abs(fc - nc)
+        delta = new_dist - current_dist
+        delta_str = if delta < 0, do: "#{delta} closer", else: "+#{delta} farther"
+        {dir_opt, new_dist, delta_str}
+      end)
+      |> Enum.sort_by(fn {_, dist, _} -> dist end)
+      |> Enum.map_join("\n", fn {d, dist, delta_str} ->
+        label = d |> Atom.to_string() |> String.upcase() |> String.pad_trailing(5)
+        "  #{label} → distance #{dist} (#{delta_str})"
+      end)
 
     """
     Current direction: #{dir |> Atom.to_string() |> String.upcase()}
     Score: #{score}
     Head: row #{hr}, col #{hc}
-    Food: row #{fr}, col #{fc}  (#{row_hint}; #{col_hint})
-    Safe moves: #{safe}
-    #{board}\
+    Food: row #{fr}, col #{fc}  (current distance: #{current_dist})
+    Move options (ranked closest first):
+    #{move_analysis}
+    #{Enum.join(grid, "\n")}\
     """
   end
 

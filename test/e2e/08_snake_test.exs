@@ -8,6 +8,7 @@ defmodule VestaboardAgent.E2E.SnakeTest do
   # Color codes used in Game.to_grid/1
   @head_code 69
   @body_code 67
+  @food_code 63
 
   describe "snake game" do
     test "each frame shows the snake head moving exactly one cell" do
@@ -95,6 +96,35 @@ defmodule VestaboardAgent.E2E.SnakeTest do
           "Frame #{i}→#{i + 1}: body grew by #{delta} cells (expected 0 or 1)"
       end)
 
+      # --- Snake net-approaches food: more moves closer than farther ---
+      # When food changes position (eaten), exclude that transition since distance
+      # resets. Only assert over runs where food stays in the same place.
+      closer_moves =
+        game_frames
+        |> Enum.chunk_every(2, 1, :discard)
+        |> Enum.reject(fn [fa, fb] -> food_position(fa) != food_position(fb) end)
+        |> Enum.count(fn [fa, fb] ->
+          {hr_a, hc_a} = head_position(fa)
+          {fr, fc} = food_position(fa)
+          {hr_b, hc_b} = head_position(fb)
+          dist_a = abs(fr - hr_a) + abs(fc - hc_a)
+          dist_b = abs(fr - hr_b) + abs(fc - hc_b)
+          dist_b < dist_a
+        end)
+
+      same_food_transitions =
+        game_frames
+        |> Enum.chunk_every(2, 1, :discard)
+        |> Enum.reject(fn [fa, fb] -> food_position(fa) != food_position(fb) end)
+        |> length()
+
+      IO.puts("  [snake e2e] food-approach: #{closer_moves}/#{same_food_transitions} moves closer to food")
+
+      if same_food_transitions > 0 do
+        assert closer_moves >= div(same_food_transitions, 2),
+          "Snake moved toward food on only #{closer_moves}/#{same_food_transitions} moves — LLM is not seeking food effectively"
+      end
+
       # --- Each snake cell has at least one adjacent snake neighbor (no gaps) ---
       game_frames
       |> Enum.with_index()
@@ -123,6 +153,15 @@ defmodule VestaboardAgent.E2E.SnakeTest do
   defp head_position(grid) do
     Enum.find_value(Enum.with_index(grid), fn {row, r} ->
       case Enum.find_index(row, &(&1 == @head_code)) do
+        nil -> nil
+        c -> {r, c}
+      end
+    end)
+  end
+
+  defp food_position(grid) do
+    Enum.find_value(Enum.with_index(grid), fn {row, r} ->
+      case Enum.find_index(row, &(&1 == @food_code)) do
         nil -> nil
         c -> {r, c}
       end

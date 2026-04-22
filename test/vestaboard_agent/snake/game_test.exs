@@ -425,24 +425,32 @@ defmodule VestaboardAgent.Snake.GameTest do
       assert String.contains?(ascii, "Food: row #{fr}, col #{fc}")
     end
 
-    test "direction hint is correct when food is up-left of head" do
+    test "move options ranked closest first when food is up-left of head" do
+      # head {3,10}, food {1,5} — UP closes row gap, LEFT closes col gap
       game = %{Game.new() | snake: [{3, 10}, {3, 9}, {3, 8}], food: {1, 5}, direction: :right}
       ascii = Game.to_ascii(game)
-      assert String.contains?(ascii, "food is UP")
-      assert String.contains?(ascii, "food is LEFT")
+      assert String.contains?(ascii, "Move options (ranked closest first):")
+      # UP reduces row distance (3→2 vs food row 1); should appear before DOWN
+      up_idx = :binary.match(ascii, "UP") |> elem(0)
+      down_idx = :binary.match(ascii, "DOWN") |> elem(0)
+      assert up_idx < down_idx, "UP should rank above DOWN when food is above head"
     end
 
-    test "direction hint is correct when food is down-right of head" do
+    test "move options ranked closest first when food is down-right of head" do
+      # head {1,5}, food {4,15} — DOWN and RIGHT close respective gaps
       game = %{Game.new() | snake: [{1, 5}, {1, 4}, {1, 3}], food: {4, 15}, direction: :right}
       ascii = Game.to_ascii(game)
-      assert String.contains?(ascii, "food is DOWN")
-      assert String.contains?(ascii, "food is RIGHT")
+      assert String.contains?(ascii, "Move options (ranked closest first):")
+      # DOWN reduces row distance (1→2 vs food row 4); UP increases it
+      down_idx = :binary.match(ascii, "DOWN") |> elem(0)
+      up_idx = :binary.match(ascii, "UP") |> elem(0)
+      assert down_idx < up_idx, "DOWN should rank above UP when food is below head"
     end
 
-    test "safe moves are listed" do
-      game = no_food(%{Game.new() | snake: [{3, 5}, {3, 4}, {3, 3}], direction: :right})
-      ascii = Game.to_ascii(%{game | food: {5, 21}})
-      assert String.contains?(ascii, "Safe moves:")
+    test "move options section is present" do
+      game = %{Game.new() | snake: [{3, 5}, {3, 4}, {3, 3}], food: {5, 21}, direction: :right}
+      ascii = Game.to_ascii(game)
+      assert String.contains?(ascii, "Move options (ranked closest first):")
     end
   end
 end
