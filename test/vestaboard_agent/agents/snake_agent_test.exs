@@ -48,7 +48,8 @@ defmodule VestaboardAgent.Agents.SnakeAgentTest do
         llm_opts: [plug: plug],
         dispatch_fn: dispatch_fn,
         read_fn: read_fn,
-        max_moves: 3
+        max_moves: 3,
+        min_frame_ms: 0
       })
     end
 
@@ -63,7 +64,8 @@ defmodule VestaboardAgent.Agents.SnakeAgentTest do
         llm_opts: [plug: plug],
         dispatch_fn: dispatch_fn,
         read_fn: read_fn,
-        max_moves: 5
+        max_moves: 5,
+        min_frame_ms: 0
       })
     end
 
@@ -89,7 +91,8 @@ defmodule VestaboardAgent.Agents.SnakeAgentTest do
         llm_opts: [plug: plug],
         dispatch_fn: dispatch_fn,
         read_fn: read_fn,
-        max_moves: 3
+        max_moves: 3,
+        min_frame_ms: 0
       })
 
       # 3 move frames + 1 game-over frame = 4 dispatches

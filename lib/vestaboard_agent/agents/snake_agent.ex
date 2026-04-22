@@ -19,6 +19,13 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
 
   @lock_key :snake_running
 
+  @frame_poll_interval_ms 100
+  @frame_poll_max_attempts 20
+  # Default minimum wall-clock time between frames. The board physically takes
+  # ~1-2s to render even when the API acknowledges quickly. Override via
+  # context: %{min_frame_ms: 0} in tests to skip the delay.
+  @default_min_frame_ms 2_000
+
   @impl true
   def name, do: "snake"
 
@@ -33,8 +40,9 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
         dispatch_fn = Map.get(context, :dispatch_fn, &Dispatcher.dispatch/1)
         read_fn = Map.get(context, :read_fn, &Client.read/0)
         max_moves = Map.get(context, :max_moves, :infinity)
+        min_frame_ms = Map.get(context, :min_frame_ms, @default_min_frame_ms)
         game = Game.new()
-        play(game, llm_opts, dispatch_fn, read_fn, max_moves)
+        play(game, llm_opts, dispatch_fn, read_fn, max_moves, min_frame_ms)
         {:ok, :done}
       after
         release_lock()
@@ -77,17 +85,15 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
     end
   end
 
-  @frame_poll_interval_ms 100
-  @frame_poll_max_attempts 20
-
   # --- Game loop ---
 
-  defp play(game, _llm_opts, dispatch_fn, _read_fn, 0) do
+  defp play(game, _llm_opts, dispatch_fn, _read_fn, 0, _min_frame_ms) do
     Logger.info("[snake] max_moves reached — ending game (score #{game.score})")
     game_over(game, dispatch_fn)
   end
 
-  defp play(game, llm_opts, dispatch_fn, read_fn, moves_left) do
+  defp play(game, llm_opts, dispatch_fn, read_fn, moves_left, min_frame_ms) do
+    frame_start = System.monotonic_time(:millisecond)
     grid = Game.to_grid(game)
 
     case dispatch_fn.(grid) do
@@ -109,10 +115,17 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
 
       Logger.info("[snake] move=#{direction} safe=#{inspect(safe)} score=#{game.score} head=#{inspect(hd(game.snake))} llm=#{elapsed}ms")
 
+      # Enforce minimum frame time so the display can finish rendering before
+      # the next frame is sent.
+      frame_elapsed = System.monotonic_time(:millisecond) - frame_start
+      if frame_elapsed < min_frame_ms do
+        Process.sleep(min_frame_ms - frame_elapsed)
+      end
+
       next_left = if moves_left == :infinity, do: :infinity, else: moves_left - 1
 
       case Game.move(game, direction) do
-        {:ok, new_game} -> play(new_game, llm_opts, dispatch_fn, read_fn, next_left)
+        {:ok, new_game} -> play(new_game, llm_opts, dispatch_fn, read_fn, next_left, min_frame_ms)
         {:error, :dead} ->
           Logger.info("[snake] died on #{direction} — game over (score #{game.score})")
           game_over(game, dispatch_fn)
