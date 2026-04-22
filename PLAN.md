@@ -23,21 +23,21 @@ Status legend: ✅ done · 🔄 in progress · ⬜ not started
 
 ---
 
-## Phase 2 — Core Runtime
+## Phase 2 — Core Runtime ✅
 
 Turn the pipeline from a diagram into running code.
 
 | | Item | Notes |
 |---|---|---|
-| ✅ | `Renderer` — convert a string to a 6×22 character grid | Local character map; word-wrap; center/left align |
-| ✅ | `Dispatcher` — send a rendered grid via `Client` | Accepts text or pre-rendered grid |
+| ✅ | `Renderer` — convert a string to a 6×22 character grid | Local character map; word-wrap; center/left align; vertical centering |
+| ✅ | `Dispatcher` — send a rendered grid via `Client` | Accepts text or pre-rendered grid; serialized GenServer |
 | ✅ | Wire `Tool → Renderer → Dispatcher` end-to-end | `Dispatcher.dispatch_tool/2`; `Greeter` agent proves full path |
 | ✅ | `Agent.Registry` — map a prompt string to an agent module | GenServer; keyword match; runtime registration |
 | ✅ | Supervision tree — start registry + dispatcher under an OTP supervisor | `VestaboardAgent.Application` |
 
 ---
 
-## Phase 3 — Real Tools
+## Phase 3 — Real Tools ✅
 
 | | Tool | Description |
 |---|---|---|
@@ -48,7 +48,7 @@ Turn the pipeline from a diagram into running code.
 
 ---
 
-## Phase 4 — Agent Intelligence
+## Phase 4 — Agent Intelligence ✅
 
 | | Item | Notes |
 |---|---|---|
@@ -60,9 +60,32 @@ Turn the pipeline from a diagram into running code.
 
 ---
 
+## Phase 5 — Display Quality ✅
+
+| | Item | Notes |
+|---|---|---|
+| ✅ | `Formatter` — LLM-based layout + border color selection | Returns `{text, render_opts}` |
+| ✅ | `Renderer` border support | 1-cell colored ring; 4×20 inner content area |
+| ✅ | Vertical centering | Blank rows split evenly above and below content |
+| ✅ | `VestaboardAgent.display/1` — single entry point | Routes prompt → agent → formatter → dispatcher |
+| ✅ | Agents return `{:ok, text}` | Formatter runs on tool output, not raw prompt |
+
+---
+
+## Phase 6 — Chat Interface
+
+| | Item | Notes |
+|---|---|---|
+| ⬜ | **6a** HTTP chat endpoint | `POST /chat` via Plug.Router; returns displayed text + border |
+| ⬜ | **6b** `ScheduleAgent` NLP wiring | Parse "show clock every 15 seconds" into a schedule call; extended cron for sub-minute intervals |
+| ⬜ | **6c** Conversation context | Track last N board states; pass to LLM so follow-ups ("make it bigger") work |
+| ⬜ | **6d** Board read-back | `GET /board` returns current grid + decoded text; include in LLM context |
+
+---
+
 ## Backlog
 
+- [ ] `Countdown` tool — days/hours/minutes until a target datetime
 - [ ] ExDoc documentation site
 - [ ] Cloud API parity (transitions, `format_text`)
 - [ ] Multi-board support
-- [ ] Web UI or CLI for sending ad-hoc messages
