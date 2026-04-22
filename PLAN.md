@@ -203,6 +203,72 @@ The Vestaboard local API returns 429 when writes are too frequent. Currently the
 
 ---
 
+## Phase 12 — Architecture & Code Quality
+
+Review the codebase for architectural correctness and Elixir best practices. Clean up anything that deviates from idiomatic OTP/Elixir patterns.
+
+| | Item | Notes |
+|---|---|---|
+| ⬜ | **12a** Architecture review | Check supervision tree, GenServer usage, ETS ownership, process boundaries; document findings |
+| ⬜ | **12b** Elixir best practices pass | Typespecs, `@doc`, pattern matching, avoid anti-patterns (e.g. `send` where `call` is correct, naked `spawn`) |
+| ⬜ | **12c** Cleanup | Remove dead code, fix warnings, enforce `mix format` + `mix credo` |
+
+---
+
+## Phase 13 — Raspberry Pi Deployment
+
+Run the agent on a Raspberry Pi so the Vestaboard works without a laptop.
+
+| | Item | Notes |
+|---|---|---|
+| ⬜ | **13a** Build a release | `mix release`; confirm it boots on ARM |
+| ⬜ | **13b** Env / secrets management | `.env` file or systemd `EnvironmentFile`; no secrets in repo |
+| ⬜ | **13c** systemd service | Auto-start on boot; restart on crash |
+| ⬜ | **13d** Network config | Pi on same LAN as board; static IP or mDNS for the board address |
+| ⬜ | **13e** Remote deploy script | `make deploy` — rsync release, restart service |
+
+---
+
+## Phase 14 — LLM Interaction Tracing & Auto-Improvement
+
+Capture every LLM conversation as a trace and automatically improve prompts when interactions are poor.
+
+| | Item | Notes |
+|---|---|---|
+| ⬜ | **14a** Trace emission | Structured log (or JSONL file) per LLM session: prompt, response, agent, latency, outcome |
+| ⬜ | **14b** Outcome scoring | Heuristics + LLM judge to rate each interaction (did it display correctly? did it route correctly?) |
+| ⬜ | **14c** Auto-improvement loop | On low-scoring traces, send prompt + response + failure reason back to LLM to suggest a prompt rewrite |
+| ⬜ | **14d** Prompt versioning | Store prompt versions with scores; pin to best-known version per agent |
+
+---
+
+## Phase 15 — External Data Sources
+
+The `DynamicAgent` generates Lua tools that call external APIs, but most free APIs are unreliable, rate-limited, or require keys. Make data fetching robust.
+
+| | Item | Notes |
+|---|---|---|
+| ⬜ | **15a** Audit current tool failures | Catalogue which DynamicAgent-generated tools fail and why (bad API, auth, rate limit) |
+| ⬜ | **15b** Curated data source library | A set of known-working, key-free (or key-managed) endpoints the LLM can reliably use |
+| ⬜ | **15c** API key management | Secure per-source key storage; pass to Lua tools via environment bindings |
+| ⬜ | **15d** Tool caching | Cache successful tool outputs with a TTL so repeat requests don't re-fetch |
+| ⬜ | **15e** Fallback + retry in DynamicAgent | If generated tool fails, re-prompt LLM with the error to produce a revised tool |
+
+---
+
+## Phase 16 — Agent Routing Improvements
+
+The current keyword + LLM routing is brittle. Improve confidence, observability, and correctness.
+
+| | Item | Notes |
+|---|---|---|
+| ⬜ | **16a** Routing confidence score | LLM returns agent name + confidence; route to DynamicAgent below a threshold |
+| ⬜ | **16b** Routing evaluation dataset | A fixed set of prompts with expected agent labels; `mix test.e2e` asserts routing accuracy |
+| ⬜ | **16c** Embedding-based routing | Pre-embed agent descriptions; route by cosine similarity as a faster/cheaper first pass |
+| ⬜ | **16d** Routing trace & explain | Log which agent was selected and why; surface this in `/status` |
+
+---
+
 ## Backlog
 
 - [ ] `Countdown` tool — days/hours/minutes until a target datetime
