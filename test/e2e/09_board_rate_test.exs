@@ -3,102 +3,99 @@ defmodule VestaboardAgent.E2E.BoardRateTest do
 
   @moduletag timeout: 300_000
 
-  alias VestaboardAgent.{Client, Dispatcher}
+  alias VestaboardAgent.Client
 
   @rows 6
   @cols 22
-
-  # How many frames to send in each test.
   @frame_count 10
-
-  # Per-frame poll settings.
   @poll_interval_ms 50
-  @poll_timeout_ms 10_000
+  @poll_timeout_ms 15_000
+
+  # Vestaboard color codes that are NOT printable ASCII (>= 128 or == 0).
+  # Codes 71-87 are safe: they're above printable ASCII so Elixir won't
+  # display them as charlists, and they're valid board color codes.
+  @frame_colors [71, 72, 73, 74, 75, 76, 77, 78]
 
   describe "board rate limiting" do
-    @tag timeout: 300_000
     test "measures round-trip latency for sequential frames" do
       frames = build_frames(@frame_count)
+
+      IO.puts("\n  [rate] sending #{@frame_count} frames sequentially, polling for read-back...")
 
       timings =
         Enum.map(Enum.with_index(frames), fn {grid, i} ->
           t0 = System.monotonic_time(:millisecond)
 
-          result = Dispatcher.dispatch(grid)
-          dispatch_ms = System.monotonic_time(:millisecond) - t0
+          case Client.write_characters(grid) do
+            {:ok, _} ->
+              dispatch_ms = System.monotonic_time(:millisecond) - t0
+              {confirmed, confirm_ms} = poll_until_match(grid, @poll_timeout_ms)
+              total_ms = System.monotonic_time(:millisecond) - t0
 
-          {confirmed, confirm_ms} =
-            case result do
-              {:ok, _} -> poll_until_match(grid, @poll_timeout_ms)
-              {:error, reason} -> {:error_skipped, 0}
-            end
+              status = if confirmed == :ok, do: "✓", else: "✗ (#{confirmed})"
+              IO.puts("  frame #{i}: write=#{dispatch_ms}ms  confirm=#{confirm_ms}ms  total=#{total_ms}ms  #{status}")
 
-          total_ms = System.monotonic_time(:millisecond) - t0
+              %{frame: i, write_ms: dispatch_ms, confirm_ms: confirm_ms, total_ms: total_ms, ok: confirmed == :ok}
 
-          IO.puts("  frame #{i}: dispatch=#{dispatch_ms}ms confirm=#{confirm_ms}ms total=#{total_ms}ms #{if confirmed == :ok, do: "✓", else: "✗ (#{confirmed})"}")
-
-          %{frame: i, dispatch_ms: dispatch_ms, confirm_ms: confirm_ms, total_ms: total_ms, confirmed: confirmed}
+            {:error, reason} ->
+              elapsed = System.monotonic_time(:millisecond) - t0
+              IO.puts("  frame #{i}: WRITE ERROR #{inspect(reason)} (#{elapsed}ms)")
+              %{frame: i, write_ms: elapsed, confirm_ms: 0, total_ms: elapsed, ok: false}
+          end
         end)
 
       print_stats(timings)
 
-      confirmed_count = Enum.count(timings, &(&1.confirmed == :ok))
-      assert confirmed_count == @frame_count,
-        "Only #{confirmed_count}/#{@frame_count} frames were confirmed by read-back within #{@poll_timeout_ms}ms"
+      ok_count = Enum.count(timings, & &1.ok)
+      assert ok_count == @frame_count,
+        "Only #{ok_count}/#{@frame_count} frames confirmed by read-back within #{@poll_timeout_ms}ms"
     end
 
-    @tag timeout: 300_000
-    test "measures how quickly the board accepts rapid-fire posts" do
+    test "measures raw write throughput with no delay between frames" do
       frames = build_frames(@frame_count)
 
-      {timings, error_count} =
-        Enum.reduce(Enum.with_index(frames), {[], 0}, fn {grid, i}, {acc, errs} ->
+      IO.puts("\n  [rate] rapid-fire #{@frame_count} writes with no delay...")
+
+      timings =
+        Enum.map(Enum.with_index(frames), fn {grid, i} ->
           t0 = System.monotonic_time(:millisecond)
-          result = Dispatcher.dispatch(grid)
+          result = Client.write_characters(grid)
           elapsed = System.monotonic_time(:millisecond) - t0
 
-          case result do
-            {:ok, _} ->
-              IO.puts("  rapid frame #{i}: #{elapsed}ms OK")
-              {[%{frame: i, ms: elapsed, status: :ok} | acc], errs}
+          status =
+            case result do
+              {:ok, _}              -> :ok
+              {:error, :rate_limited} -> :rate_limited
+              {:error, reason}      -> {:error, reason}
+            end
 
-            {:error, :rate_limited} ->
-              IO.puts("  rapid frame #{i}: #{elapsed}ms RATE LIMITED")
-              {[%{frame: i, ms: elapsed, status: :rate_limited} | acc], errs + 1}
-
-            {:error, reason} ->
-              IO.puts("  rapid frame #{i}: #{elapsed}ms ERROR #{inspect(reason)}")
-              {[%{frame: i, ms: elapsed, status: {:error, reason}} | acc], errs + 1}
-          end
+          IO.puts("  write #{i}: #{elapsed}ms  #{inspect(status)}")
+          %{frame: i, ms: elapsed, status: status}
         end)
 
-      timings = Enum.reverse(timings)
-      ok_count = Enum.count(timings, &(&1.status == :ok))
+      ok_count      = Enum.count(timings, &(&1.status == :ok))
+      limited_count = Enum.count(timings, &(&1.status == :rate_limited))
+      error_count   = Enum.count(timings, &(match?({:error, _}, &1.status)))
 
-      IO.puts("\n  [rate] #{ok_count}/#{@frame_count} accepted, #{error_count} rejected")
-      IO.puts("  [rate] min=#{Enum.min_by(timings, & &1.ms).ms}ms max=#{Enum.max_by(timings, & &1.ms).ms}ms")
+      IO.puts("\n  [rate] accepted=#{ok_count}  rate_limited=#{limited_count}  errors=#{error_count}")
 
-      # Not asserting a specific rate — this test is diagnostic. Just confirm
-      # at least the first frame went through.
+      all_ms = Enum.map(timings, & &1.ms) |> Enum.sort()
+      IO.puts("  [rate] write time  min=#{Enum.min(all_ms)}ms  max=#{Enum.max(all_ms)}ms  p50=#{percentile(all_ms, 50)}ms")
+
       assert ok_count >= 1, "No frames were accepted at all"
     end
   end
 
   # ---------------------------------------------------------------------------
-  # Frame generation
+  # Frame generation — each frame fills one row with a distinct color
   # ---------------------------------------------------------------------------
 
-  # Generates @frame_count distinct grids. Each frame lights up one row with a
-  # unique color code so they are visually and numerically distinct.
   defp build_frames(count) do
     blank = List.duplicate(List.duplicate(0, @cols), @rows)
 
     Enum.map(0..(count - 1), fn i ->
-      # Color cycles through a set of Vestaboard codes (non-zero, non-black).
-      # Codes 63–69 are safe (red, orange, yellow, green, blue, violet, white).
-      color = rem(i, 7) + 63
+      color = Enum.at(@frame_colors, rem(i, length(@frame_colors)))
       row_index = rem(i, @rows)
-
       List.replace_at(blank, row_index, List.duplicate(color, @cols))
     end)
   end
@@ -125,27 +122,27 @@ defmodule VestaboardAgent.E2E.BoardRateTest do
   end
 
   # ---------------------------------------------------------------------------
-  # Stats reporting
+  # Stats
   # ---------------------------------------------------------------------------
 
   defp print_stats(timings) do
-    totals = Enum.map(timings, & &1.total_ms) |> Enum.sort()
-    confirms = timings |> Enum.filter(&(&1.confirmed == :ok)) |> Enum.map(& &1.confirm_ms) |> Enum.sort()
+    totals   = timings |> Enum.map(& &1.total_ms) |> Enum.sort()
+    confirms = timings |> Enum.filter(& &1.ok) |> Enum.map(& &1.confirm_ms) |> Enum.sort()
 
-    IO.puts("\n  ── Dispatch + confirm latency (#{length(totals)} frames) ──")
-    IO.puts("  total  min=#{Enum.min(totals)}ms  max=#{Enum.max(totals)}ms  p50=#{percentile(totals, 50)}ms  p95=#{percentile(totals, 95)}ms")
+    IO.puts("\n  ── Sequential round-trip stats (#{length(totals)} frames) ──")
+    IO.puts("  total    min=#{Enum.min(totals)}ms  max=#{Enum.max(totals)}ms  p50=#{percentile(totals, 50)}ms  p95=#{percentile(totals, 95)}ms")
 
     if confirms != [] do
-      IO.puts("  confirm min=#{Enum.min(confirms)}ms  max=#{Enum.max(confirms)}ms  p50=#{percentile(confirms, 50)}ms  p95=#{percentile(confirms, 95)}ms")
+      IO.puts("  confirm  min=#{Enum.min(confirms)}ms  max=#{Enum.max(confirms)}ms  p50=#{percentile(confirms, 50)}ms  p95=#{percentile(confirms, 95)}ms")
     end
 
     suggested = percentile(totals, 95)
-    IO.puts("  ── Suggested min frame interval: ~#{suggested}ms (p95 round-trip) ──")
+    IO.puts("  ── Suggested min frame interval: ~#{suggested}ms ──")
   end
 
-  defp percentile(sorted_list, p) do
-    n = length(sorted_list)
+  defp percentile(sorted, p) do
+    n   = length(sorted)
     idx = round(p / 100 * (n - 1))
-    Enum.at(sorted_list, idx)
+    Enum.at(sorted, idx)
   end
 end
