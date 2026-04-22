@@ -16,10 +16,10 @@ defmodule VestaboardAgent.Agent.Registry do
 
   use GenServer
 
-  alias VestaboardAgent.Agents.{DynamicAgent, Greeter}
+  alias VestaboardAgent.Agents.{DynamicAgent, Greeter, WeatherAgent}
   alias VestaboardAgent.LLM
 
-  @default_agents [Greeter, DynamicAgent]
+  @default_agents [Greeter, WeatherAgent, DynamicAgent]
 
   # --- Public API ---
 

@@ -10,3 +10,7 @@ config :vestaboard_agent, :client,
   backend: VestaboardAgent.Client.Local,
   api_key: System.get_env("VESTABOARD_LOCAL_API_KEY"),
   base_url: base_url
+
+config :vestaboard_agent, :weather,
+  latitude: 33.5095,
+  longitude: -112.0493

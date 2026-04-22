@@ -61,6 +61,10 @@ defmodule VestaboardAgent.Tools.WeatherTest do
   end
 
   test "returns error when location is missing" do
+    original = Application.get_env(:vestaboard_agent, :weather, [])
+    Application.put_env(:vestaboard_agent, :weather, [])
+    on_exit(fn -> Application.put_env(:vestaboard_agent, :weather, original) end)
+
     assert {:error, :location_required} = Weather.run(%{})
   end
 
