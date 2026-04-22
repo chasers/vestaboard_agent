@@ -23,6 +23,8 @@ defmodule Mix.Tasks.Test.E2e do
 
   @impl Mix.Task
   def run(args) do
+    load_dotenv()
+
     required = ["VESTABOARD_LOCAL_API_KEY", "ANTHROPIC_API_KEY"]
     missing = Enum.filter(required, &(System.get_env(&1) == nil))
 
@@ -47,5 +49,22 @@ defmodule Mix.Tasks.Test.E2e do
       "--only", "e2e"
       | (if args == [], do: ["test/e2e"], else: args)
     ])
+  end
+
+  defp load_dotenv do
+    dotenv = Path.join(File.cwd!(), ".env")
+
+    if File.exists?(dotenv) do
+      dotenv
+      |> File.read!()
+      |> String.split("\n", trim: true)
+      |> Enum.reject(&String.starts_with?(&1, "#"))
+      |> Enum.each(fn line ->
+        case String.split(line, "=", parts: 2) do
+          [key, value] -> System.put_env(String.trim(key), String.trim(value))
+          _ -> :ok
+        end
+      end)
+    end
   end
 end

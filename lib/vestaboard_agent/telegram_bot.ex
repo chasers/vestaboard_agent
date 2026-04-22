@@ -113,12 +113,13 @@ defmodule VestaboardAgent.TelegramBot do
   end
 
   defp handle_message(chat_id, text, state) do
-    t0 = System.monotonic_time(:millisecond)
-    result = VestaboardAgent.display(text)
-    elapsed = System.monotonic_time(:millisecond) - t0
-
-    reply = format_reply(result, elapsed)
-    send_message(state.token, chat_id, reply)
+    token = state.token
+    Task.start(fn ->
+      t0 = System.monotonic_time(:millisecond)
+      result = VestaboardAgent.display(text)
+      elapsed = System.monotonic_time(:millisecond) - t0
+      send_message(token, chat_id, format_reply(result, elapsed))
+    end)
   end
 
   # --- Reply formatting ---
@@ -143,8 +144,6 @@ defmodule VestaboardAgent.TelegramBot do
   defp format_reply({:error, reason}, _elapsed) do
     "Error: #{html_escape(inspect(reason))}"
   end
-
-  defp border_color_name(nil), do: nil
 
   defp border_color_name(grid) do
     first_row = hd(grid)

@@ -18,6 +18,8 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
 
   alias VestaboardAgent.{Dispatcher, LLM, Snake.Game}
 
+  @lock_key :snake_running
+
   @impl true
   def name, do: "snake"
 
@@ -26,12 +28,53 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
 
   @impl true
   def handle(_prompt, context) do
-    llm_opts = Map.get(context, :llm_opts, [])
-    dispatch_fn = Map.get(context, :dispatch_fn, &Dispatcher.dispatch/1)
-    max_moves = Map.get(context, :max_moves, :infinity)
-    game = Game.new()
-    play(game, llm_opts, dispatch_fn, max_moves)
-    {:ok, :done}
+    if acquire_lock() do
+      try do
+        llm_opts = Map.get(context, :llm_opts, [])
+        dispatch_fn = Map.get(context, :dispatch_fn, &Dispatcher.dispatch/1)
+        max_moves = Map.get(context, :max_moves, :infinity)
+        game = Game.new()
+        play(game, llm_opts, dispatch_fn, max_moves)
+        {:ok, :done}
+      after
+        release_lock()
+      end
+    else
+      Logger.warning("[snake] game already in progress — ignoring duplicate start")
+      {:ok, :done}
+    end
+  end
+
+  defp acquire_lock do
+    case :ets.lookup(:snake_locks, @lock_key) do
+      [{@lock_key, pid}] when pid != self() ->
+        if Process.alive?(pid) do
+          Logger.info("[snake] stopping previous game (pid #{inspect(pid)}) to start new one")
+          Process.exit(pid, :kill)
+          ref = Process.monitor(pid)
+          receive do
+            {:DOWN, ^ref, :process, ^pid, _} -> :ok
+          after
+            3_000 -> :ok
+          end
+        end
+        :ets.delete(:snake_locks, @lock_key)
+      _ ->
+        :ok
+    end
+    :ets.insert_new(:snake_locks, {@lock_key, self()})
+  end
+
+  defp release_lock do
+    :ets.delete(:snake_locks, @lock_key)
+  end
+
+  @doc "Return true if a snake game is currently running."
+  def running? do
+    case :ets.lookup(:snake_locks, @lock_key) do
+      [{@lock_key, pid}] -> Process.alive?(pid)
+      [] -> false
+    end
   end
 
   # --- Game loop ---

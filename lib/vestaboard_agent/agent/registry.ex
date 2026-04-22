@@ -89,6 +89,7 @@ defmodule VestaboardAgent.Agent.Registry do
 
   @impl true
   def init(_opts) do
+    :ets.new(:snake_locks, [:set, :public, :named_table])
     {:ok, @default_agents}
   end
 
