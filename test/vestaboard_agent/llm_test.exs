@@ -1,5 +1,5 @@
 defmodule VestaboardAgent.LLMTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias VestaboardAgent.LLM
 
@@ -59,7 +59,12 @@ defmodule VestaboardAgent.LLMTest do
 
   test "returns missing_api_key error when no key is configured" do
     original = Application.get_env(:vestaboard_agent, :llm, [])
-    on_exit(fn -> Application.put_env(:vestaboard_agent, :llm, original) end)
+    original_env = System.get_env("ANTHROPIC_API_KEY")
+
+    on_exit(fn ->
+      Application.put_env(:vestaboard_agent, :llm, original)
+      if original_env, do: System.put_env("ANTHROPIC_API_KEY", original_env)
+    end)
 
     Application.put_env(:vestaboard_agent, :llm, api_key: nil)
     System.delete_env("ANTHROPIC_API_KEY")
@@ -106,7 +111,13 @@ defmodule VestaboardAgent.LLMTest do
 
     test "returns missing_api_key when no key configured" do
       original = Application.get_env(:vestaboard_agent, :llm, [])
-      on_exit(fn -> Application.put_env(:vestaboard_agent, :llm, original) end)
+      original_env = System.get_env("ANTHROPIC_API_KEY")
+
+      on_exit(fn ->
+        Application.put_env(:vestaboard_agent, :llm, original)
+        if original_env, do: System.put_env("ANTHROPIC_API_KEY", original_env)
+      end)
+
       Application.put_env(:vestaboard_agent, :llm, api_key: nil)
       System.delete_env("ANTHROPIC_API_KEY")
 

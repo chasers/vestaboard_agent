@@ -49,8 +49,9 @@ defmodule VestaboardAgent.DispatcherTest do
       stub_req(fn conn ->
         {:ok, body, conn} = Plug.Conn.read_body(conn)
         decoded = Jason.decode!(body)
-        # first row should start with H=8 when left-aligned
-        assert hd(hd(decoded)) == 8
+        content_row = Enum.find(decoded, fn row -> Enum.any?(row, &(&1 != 0)) end)
+        # content row should start with H=8 when left-aligned
+        assert hd(content_row) == 8
         Req.Test.json(conn, %{"id" => "msg-3"})
       end)
 

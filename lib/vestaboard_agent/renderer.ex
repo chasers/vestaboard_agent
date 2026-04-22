@@ -32,6 +32,15 @@ defmodule VestaboardAgent.Renderer do
   @cols 22
   @blank 0
 
+  @color_codes %{
+    "red" => 63, "orange" => 64, "yellow" => 65,
+    "green" => 66, "blue" => 67, "violet" => 68, "white" => 69
+  }
+  @color_names Map.keys(@color_codes)
+
+  @doc "Map of color name strings to Vestaboard tile codes."
+  def color_codes, do: @color_codes
+
   @char_map %{
     " " => 0,
     "A" => 1,  "B" => 2,  "C" => 3,  "D" => 4,  "E" => 5,
@@ -54,6 +63,9 @@ defmodule VestaboardAgent.Renderer do
 
   Options:
     * `:align` — `:center` (default) or `:left`
+    * `:border` — a color name string (`"red"`, `"blue"`, etc.) or a raw integer tile
+      code. When set, the outer ring of tiles is filled with that color and content
+      is rendered in a 4×20 inner area.
 
   Returns `{:ok, [[integer()]]}`.
   """
@@ -61,15 +73,36 @@ defmodule VestaboardAgent.Renderer do
   def render(text, opts \\ []) when is_binary(text) do
     align = Keyword.get(opts, :align, :center)
 
-    grid =
-      text
-      |> String.upcase()
-      |> word_wrap()
-      |> Enum.take(@rows)
-      |> Enum.map(&encode_line(&1, align))
-      |> pad_rows()
+    case Keyword.get(opts, :border) do
+      nil ->
+        grid =
+          text
+          |> String.upcase()
+          |> word_wrap()
+          |> Enum.take(@rows)
+          |> Enum.map(&encode_line(&1, align, @cols))
+          |> pad_rows(@rows, @cols)
 
-    {:ok, grid}
+        {:ok, grid}
+
+      border_spec ->
+        color = resolve_color(border_spec)
+        inner_cols = @cols - 2
+        inner_rows = @rows - 2
+
+        border_row = List.duplicate(color, @cols)
+
+        content_rows =
+          text
+          |> String.upcase()
+          |> word_wrap_width(inner_cols)
+          |> Enum.take(inner_rows)
+          |> Enum.map(&encode_line(&1, align, inner_cols))
+          |> pad_rows(inner_rows, inner_cols)
+          |> Enum.map(fn row -> [color] ++ row ++ [color] end)
+
+        {:ok, [border_row] ++ content_rows ++ [border_row]}
+    end
   end
 
   @doc "Encode a single character to its Vestaboard code. Unknown characters become 0."
@@ -78,63 +111,70 @@ defmodule VestaboardAgent.Renderer do
 
   # --- Private ---
 
-  defp word_wrap(text) do
+  defp resolve_color(name) when name in @color_names, do: Map.fetch!(@color_codes, name)
+  defp resolve_color(code) when is_integer(code), do: code
+
+  defp word_wrap(text), do: word_wrap_width(text, @cols)
+
+  defp word_wrap_width(text, width) do
     text
     |> String.split("\n")
-    |> Enum.flat_map(&wrap_line/1)
+    |> Enum.flat_map(&wrap_line(&1, width))
   end
 
-  defp wrap_line(line) do
+  defp wrap_line(line, width) do
     words = String.split(line, " ", trim: true)
-    wrap_words(words, [], [])
+    wrap_words(words, [], [], width)
   end
 
-  defp wrap_words([], [], acc), do: Enum.reverse(acc)
-  defp wrap_words([], current, acc), do: Enum.reverse([Enum.join(Enum.reverse(current), " ") | acc])
+  defp wrap_words([], [], acc, _width), do: Enum.reverse(acc)
+  defp wrap_words([], current, acc, _width), do: Enum.reverse([Enum.join(Enum.reverse(current), " ") | acc])
 
-  defp wrap_words([word | rest], [], acc) do
-    # Word longer than @cols gets hard-truncated
-    {head, tail} = split_long_word(word)
+  defp wrap_words([word | rest], [], acc, width) do
+    {head, tail} = split_long_word(word, width)
     if tail == "" do
-      wrap_words(rest, [head], acc)
+      wrap_words(rest, [head], acc, width)
     else
-      wrap_words([tail | rest], [], [head | acc])
+      wrap_words([tail | rest], [], [head | acc], width)
     end
   end
 
-  defp wrap_words([word | rest], current, acc) do
+  defp wrap_words([word | rest], current, acc, width) do
     candidate = Enum.join(Enum.reverse([word | current]), " ")
 
-    if String.length(candidate) <= @cols do
-      wrap_words(rest, [word | current], acc)
+    if String.length(candidate) <= width do
+      wrap_words(rest, [word | current], acc, width)
     else
       finished = Enum.join(Enum.reverse(current), " ")
-      wrap_words([word | rest], [], [finished | acc])
+      wrap_words([word | rest], [], [finished | acc], width)
     end
   end
 
-  defp split_long_word(word) when byte_size(word) > @cols do
-    {String.slice(word, 0, @cols), String.slice(word, @cols, String.length(word))}
+  defp split_long_word(word, width) when byte_size(word) > width do
+    {String.slice(word, 0, width), String.slice(word, width, String.length(word))}
   end
-  defp split_long_word(word), do: {word, ""}
+  defp split_long_word(word, _width), do: {word, ""}
 
-  defp encode_line(line, :center) do
+  defp encode_line(line, :center, width) do
     codes = line |> String.graphemes() |> Enum.map(&encode_char/1)
     len = length(codes)
-    padding = @cols - len
+    padding = width - len
     left = div(padding, 2)
     right = padding - left
     List.duplicate(@blank, left) ++ codes ++ List.duplicate(@blank, right)
   end
 
-  defp encode_line(line, :left) do
+  defp encode_line(line, :left, width) do
     codes = line |> String.graphemes() |> Enum.map(&encode_char/1)
     len = length(codes)
-    codes ++ List.duplicate(@blank, @cols - len)
+    codes ++ List.duplicate(@blank, width - len)
   end
 
-  defp pad_rows(rows) do
-    empty = List.duplicate(@blank, @cols)
-    rows ++ List.duplicate(empty, @rows - length(rows))
+  defp pad_rows(rows, num_rows, width) do
+    empty = List.duplicate(@blank, width)
+    total_padding = num_rows - length(rows)
+    top = div(total_padding, 2)
+    bottom = total_padding - top
+    List.duplicate(empty, top) ++ rows ++ List.duplicate(empty, bottom)
   end
 end

@@ -21,14 +21,25 @@ defmodule VestaboardAgent.RendererTest do
 
     test "unused rows are blank" do
       {:ok, grid} = Renderer.render("hi")
-      assert Enum.drop(grid, 1) |> Enum.all?(fn row -> Enum.all?(row, &(&1 == @blank)) end)
+      blank_rows = Enum.filter(grid, fn row -> Enum.all?(row, &(&1 == @blank)) end)
+      assert length(blank_rows) == @rows - 1
+    end
+
+    test "single line of text is vertically centered" do
+      {:ok, grid} = Renderer.render("hi")
+      filled_index = Enum.find_index(grid, fn row -> Enum.any?(row, &(&1 != @blank)) end)
+      assert filled_index == div(@rows - 1, 2)
     end
   end
 
   describe "render/2 character encoding" do
+    defp content_row(grid) do
+      Enum.find(grid, fn row -> Enum.any?(row, &(&1 != 0)) end)
+    end
+
     test "encodes A-Z correctly" do
-      {:ok, [[_ | _] = row | _]} = Renderer.render("ABCDEFGHIJKLMNOPQRSTUVWXYZ", align: :left)
-      assert Enum.take(row, 22) == Enum.to_list(1..22)
+      {:ok, grid} = Renderer.render("ABCDEFGHIJKLMNOPQRSTUVWXYZ", align: :left)
+      assert Enum.take(content_row(grid), 22) == Enum.to_list(1..22)
     end
 
     test "lowercase is uppercased before encoding" do
@@ -38,24 +49,25 @@ defmodule VestaboardAgent.RendererTest do
     end
 
     test "encodes digits 0-9 as 27-36" do
-      {:ok, [row | _]} = Renderer.render("0123456789", align: :left)
-      assert Enum.take(row, 10) == Enum.to_list(27..36)
+      {:ok, grid} = Renderer.render("0123456789", align: :left)
+      assert Enum.take(content_row(grid), 10) == Enum.to_list(27..36)
     end
 
     test "encodes space as 0" do
-      {:ok, [row | _]} = Renderer.render("A B", align: :left)
-      assert Enum.at(row, 1) == 0
+      {:ok, grid} = Renderer.render("A B", align: :left)
+      assert Enum.at(content_row(grid), 1) == 0
     end
 
     test "unknown characters render as blank" do
-      {:ok, [row | _]} = Renderer.render("€", align: :left)
-      assert hd(row) == @blank
+      {:ok, grid} = Renderer.render("€", align: :left)
+      assert Enum.all?(grid, fn row -> Enum.all?(row, &(&1 == @blank)) end)
     end
   end
 
   describe "render/2 alignment" do
     test "centers text by default" do
-      {:ok, [row | _]} = Renderer.render("HI")
+      {:ok, grid} = Renderer.render("HI")
+      row = content_row(grid)
       encoded = [8, 9]
       text_start = div(@cols - 2, 2)
       assert Enum.slice(row, text_start, 2) == encoded
@@ -63,7 +75,8 @@ defmodule VestaboardAgent.RendererTest do
     end
 
     test "left-aligns text with align: :left" do
-      {:ok, [row | _]} = Renderer.render("HI", align: :left)
+      {:ok, grid} = Renderer.render("HI", align: :left)
+      row = content_row(grid)
       assert Enum.take(row, 2) == [8, 9]
       assert Enum.drop(row, 2) |> Enum.all?(&(&1 == @blank))
     end
@@ -86,6 +99,43 @@ defmodule VestaboardAgent.RendererTest do
       long = Enum.map_join(1..10, "\n", fn i -> "row #{i}" end)
       {:ok, grid} = Renderer.render(long)
       assert length(grid) == @rows
+    end
+  end
+
+  describe "render/2 with border" do
+    test "returns a 6x22 grid" do
+      {:ok, grid} = Renderer.render("hi", border: "blue")
+      assert length(grid) == @rows
+      assert Enum.all?(grid, fn row -> length(row) == @cols end)
+    end
+
+    test "first and last rows are all border color" do
+      color = 67
+      {:ok, [top | rest]} = Renderer.render("hi", border: "blue")
+      bottom = List.last(rest)
+      assert Enum.all?(top, &(&1 == color))
+      assert Enum.all?(bottom, &(&1 == color))
+    end
+
+    test "content rows have border color in first and last cell" do
+      color = 67
+      {:ok, [_top | rest]} = Renderer.render("hi", border: "blue")
+      content_rows = Enum.drop(rest, -1)
+      assert Enum.all?(content_rows, fn row ->
+        hd(row) == color and List.last(row) == color
+      end)
+    end
+
+    test "accepts raw integer color codes" do
+      {:ok, grid} = Renderer.render("hi", border: 65)
+      assert hd(hd(grid)) == 65
+    end
+
+    test "color_codes/0 returns all color mappings" do
+      codes = Renderer.color_codes()
+      assert codes["blue"] == 67
+      assert codes["red"] == 63
+      assert map_size(codes) == 7
     end
   end
 

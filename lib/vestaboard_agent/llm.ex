@@ -22,6 +22,19 @@ defmodule VestaboardAgent.LLM do
   @default_model "claude-haiku-4-5-20251001"
 
   @doc """
+  Send a single prompt to the LLM and return the response text.
+
+  Returns `{:ok, text}` or `{:error, reason}`.
+  Pass `plug:` in opts to inject a test stub.
+  """
+  @spec complete(String.t(), keyword()) :: {:ok, String.t()} | {:error, term()}
+  def complete(prompt, opts \\ []) do
+    with {:ok, api_key} <- api_key() do
+      call_api(api_key, model(), prompt, opts)
+    end
+  end
+
+  @doc """
   Ask the LLM to write a Lua tool script for `task_description`.
 
   Returns `{:ok, script}` or `{:error, reason}`.
@@ -29,8 +42,8 @@ defmodule VestaboardAgent.LLM do
   """
   @spec generate_tool_script(String.t(), keyword()) :: {:ok, String.t()} | {:error, term()}
   def generate_tool_script(task_description, opts \\ []) do
-    with {:ok, api_key} <- api_key() do
-      call_api(api_key, model(), script_prompt(task_description), opts)
+    with {:ok, script} <- complete(script_prompt(task_description), opts) do
+      {:ok, strip_fences(script)}
     end
   end
 
@@ -44,8 +57,7 @@ defmodule VestaboardAgent.LLM do
   @spec route_agent(String.t(), [{String.t(), [String.t()]}], keyword()) ::
           {:ok, String.t()} | {:error, term()}
   def route_agent(prompt, agents_meta, opts \\ []) do
-    with {:ok, api_key} <- api_key(),
-         {:ok, name} <- call_api(api_key, model(), routing_prompt(prompt, agents_meta), opts) do
+    with {:ok, name} <- complete(routing_prompt(prompt, agents_meta), opts) do
       {:ok, name |> String.trim() |> String.downcase()}
     end
   end
