@@ -6,9 +6,10 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
   by reading an ASCII representation of the board. The game runs until
   the snake dies, then displays a GAME OVER frame with the final score.
 
-  Each move targets a minimum frame interval (default 1000ms). The LLM
-  call time is measured and the remainder is slept so the board has time
-  to display each frame before the next write arrives.
+  Pacing is driven by board backpressure: if the board returns 429
+  the Client.Local retry loop provides natural delay (~1-7s). If all
+  retries are exhausted the frame is skipped silently and the game
+  continues. No fixed sleep is used.
   """
 
   require Logger
@@ -23,28 +24,30 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
   @impl true
   def keywords, do: ["snake"]
 
-  @default_frame_ms 1_000
-
   @impl true
   def handle(_prompt, context) do
     llm_opts = Map.get(context, :llm_opts, [])
     dispatch_fn = Map.get(context, :dispatch_fn, &Dispatcher.dispatch/1)
     max_moves = Map.get(context, :max_moves, :infinity)
-    frame_ms = Map.get(context, :frame_ms, @default_frame_ms)
     game = Game.new()
-    play(game, llm_opts, dispatch_fn, max_moves, frame_ms)
+    play(game, llm_opts, dispatch_fn, max_moves)
     {:ok, :done}
   end
 
   # --- Game loop ---
 
-  defp play(game, _llm_opts, dispatch_fn, 0, _frame_ms) do
+  defp play(game, _llm_opts, dispatch_fn, 0) do
     Logger.info("[snake] max_moves reached — ending game (score #{game.score})")
     game_over(game, dispatch_fn)
   end
 
-  defp play(game, llm_opts, dispatch_fn, moves_left, frame_ms) do
-    dispatch_fn.(Game.to_grid(game))
+  defp play(game, llm_opts, dispatch_fn, moves_left) do
+    case dispatch_fn.(Game.to_grid(game)) do
+      {:error, reason} ->
+        Logger.warning("[snake] frame skipped (#{inspect(reason)})")
+      _ ->
+        :ok
+    end
 
     safe = Game.safe_moves(game)
 
@@ -58,13 +61,10 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
 
       Logger.info("[snake] move=#{direction} safe=#{inspect(safe)} score=#{game.score} head=#{inspect(hd(game.snake))} llm=#{elapsed}ms")
 
-      remaining = frame_ms - elapsed
-      if remaining > 0, do: Process.sleep(remaining)
-
       next_left = if moves_left == :infinity, do: :infinity, else: moves_left - 1
 
       case Game.move(game, direction) do
-        {:ok, new_game} -> play(new_game, llm_opts, dispatch_fn, next_left, frame_ms)
+        {:ok, new_game} -> play(new_game, llm_opts, dispatch_fn, next_left)
         {:error, :dead} ->
           Logger.info("[snake] died on #{direction} — game over (score #{game.score})")
           game_over(game, dispatch_fn)
