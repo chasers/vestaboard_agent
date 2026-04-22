@@ -106,16 +106,20 @@ defmodule VestaboardAgent.Agents.DynamicAgentTest do
       assert :counters.get(counter, 1) == 2
     end
 
-    test "returns last result after all attempts exhausted" do
+    test "returns last result immediately when retry budget is zero" do
+      counter = :counters.new(1, [])
+
       plug = fn conn ->
+        :counters.add(counter, 1, 1)
         Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "return ''"}]})
       end
 
-      unique_prompt = "exhaust test #{System.unique_integer([:positive])}"
+      unique_prompt = "deadline test #{System.unique_integer([:positive])}"
       tool_name = DynamicAgent.derive_tool_name(unique_prompt)
       on_exit(fn -> ToolRegistry.unregister(tool_name) end)
 
-      assert {:ok, ""} = DynamicAgent.handle(unique_prompt, %{llm_opts: [plug: plug]})
+      assert {:ok, ""} = DynamicAgent.handle(unique_prompt, %{llm_opts: [plug: plug], retry_budget_ms: 0})
+      assert :counters.get(counter, 1) == 1, "expected exactly 1 LLM call with zero budget"
     end
   end
 end

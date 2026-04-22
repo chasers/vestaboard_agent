@@ -25,7 +25,7 @@ defmodule VestaboardAgent.Agents.DynamicAgent do
   @impl true
   def keywords, do: []
 
-  @max_attempts 5
+  @default_retry_budget_ms 30_000
 
   @impl true
   def handle(prompt, context) do
@@ -45,31 +45,28 @@ defmodule VestaboardAgent.Agents.DynamicAgent do
   # --- Private ---
 
   defp generate_and_run(tool_name, prompt, context, llm_opts) do
+    budget = Map.get(context, :retry_budget_ms, @default_retry_budget_ms)
+    deadline = System.monotonic_time(:millisecond) + budget
+
     case LLM.generate_tool_script(prompt, llm_opts) do
-      {:ok, script} -> retry_loop(tool_name, prompt, context, llm_opts, script, @max_attempts - 1)
+      {:ok, script} -> retry_loop(tool_name, prompt, context, llm_opts, script, deadline)
       {:error, _} = err -> err
     end
   end
 
-  # Run the script; if the result is bad and attempts remain, ask the LLM to rewrite.
-  defp retry_loop(tool_name, prompt, context, llm_opts, script, remaining) when remaining > 0 do
+  # Run the script; if the result is bad and time remains, ask the LLM to rewrite.
+  defp retry_loop(tool_name, prompt, context, llm_opts, script, deadline) do
     :ok = ToolRegistry.register_script(tool_name, script)
     result = ToolRegistry.run(tool_name, context)
 
-    if good?(result) do
+    if good?(result) or System.monotonic_time(:millisecond) >= deadline do
       result
     else
       case LLM.regenerate_tool_script(prompt, script, result, llm_opts) do
-        {:ok, new_script} -> retry_loop(tool_name, prompt, context, llm_opts, new_script, remaining - 1)
+        {:ok, new_script} -> retry_loop(tool_name, prompt, context, llm_opts, new_script, deadline)
         {:error, _} -> result
       end
     end
-  end
-
-  # No attempts remaining — run the current script and return whatever it produces.
-  defp retry_loop(tool_name, _prompt, context, _llm_opts, script, _remaining) do
-    :ok = ToolRegistry.register_script(tool_name, script)
-    ToolRegistry.run(tool_name, context)
   end
 
   defp good?({:ok, text}) when is_binary(text), do: String.trim(text) != ""
