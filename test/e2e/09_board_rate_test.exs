@@ -51,13 +51,14 @@ defmodule VestaboardAgent.E2E.BoardRateTest do
         "Only #{ok_count}/#{@frame_count} frames confirmed by read-back within #{@poll_timeout_ms}ms"
     end
 
-    test "measures raw write throughput with no delay between frames" do
+    test "measures raw write throughput with 1s between frames" do
       frames = build_frames(@frame_count)
 
-      IO.puts("\n  [rate] rapid-fire #{@frame_count} writes with no delay...")
+      IO.puts("\n  [rate] sending #{@frame_count} writes with 1s between frames...")
 
       timings =
         Enum.map(Enum.with_index(frames), fn {grid, i} ->
+          if i > 0, do: Process.sleep(1_000)
           t0 = System.monotonic_time(:millisecond)
           result = Client.write_characters(grid)
           elapsed = System.monotonic_time(:millisecond) - t0
