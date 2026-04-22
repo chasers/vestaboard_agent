@@ -161,6 +161,18 @@ Optional env vars: `TELEGRAM_ALLOWED_USERS` (comma-separated chat IDs; if unset,
 
 ---
 
+## Phase 9 — ConversationalAgent
+
+Handle open-ended knowledge questions ("Who is god?", "What's the capital of France?") by asking the LLM to answer concisely and displaying the result on the board. Currently these fall through to `DynamicAgent` which tries to write a Lua tool — wrong tool for the job.
+
+| | Item | Notes |
+|---|---|---|
+| ✅ | **9a** `ConversationalAgent` | Sends prompt to LLM with a board-aware system prompt (≤6 lines, ≤22 chars each); returns answer text for normal formatter → dispatcher pipeline |
+| ✅ | **9b** Smarter LLM routing prompt | Teach the router to distinguish *knowledge/conversational* (→ `ConversationalAgent`) from *computation/data fetch* (→ `DynamicAgent`) |
+| ✅ | **9c** Wire into registry | Add `ConversationalAgent` to `@default_agents` before `DynamicAgent`; add to LLM routing candidate list |
+
+---
+
 ## Backlog
 
 - [ ] `Countdown` tool — days/hours/minutes until a target datetime

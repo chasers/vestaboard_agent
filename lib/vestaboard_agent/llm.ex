@@ -182,11 +182,15 @@ defmodule VestaboardAgent.LLM do
     Available handlers:
     #{agent_list}
 
-    If the prompt is a follow-up (e.g. "do that again", "same but different color"),
-    route to the same handler as the most recent prompt above.
+    Routing rules:
+    - If the prompt is a follow-up (e.g. "do that again", "same but different color"),
+      route to the same handler as the most recent prompt above.
+    - If the prompt asks a knowledge or conversational question (e.g. "Who is God?",
+      "What is the meaning of life?", "Tell me about Einstein"), reply with "conversational".
+    - If the prompt needs live data or computation not covered by a specific handler
+      (e.g. "show BTC price", "display a countdown to Friday"), reply with "dynamic".
 
     Reply with ONLY the handler name that best matches.
-    If none fit well, reply with "dynamic".
     """
   end
 
