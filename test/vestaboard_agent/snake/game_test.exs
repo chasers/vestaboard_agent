@@ -46,9 +46,10 @@ defmodule VestaboardAgent.Snake.GameTest do
     end
 
     test "returns {:error, :dead} on self collision" do
-      # U-shaped snake: head at {2,5}, body curves down and back; moving left hits {2,4}
-      game = %{Game.new() | snake: [{2, 5}, {3, 5}, {3, 4}, {3, 3}, {2, 3}, {2, 4}]}
-      assert {:error, :dead} = Game.move(game, :left)
+      # U-shaped snake heading down; moving right from {2,5} hits body at {2,4}...
+      # direction: :down so :up would be reversal; :right is valid and lands on {2,4} = body
+      game = %{Game.new() | snake: [{2, 3}, {3, 3}, {3, 4}, {3, 5}, {2, 5}, {2, 4}], direction: :up}
+      assert {:error, :dead} = Game.move(game, :right)
     end
   end
 
@@ -61,18 +62,22 @@ defmodule VestaboardAgent.Snake.GameTest do
       assert String.contains?(ascii, "F")
     end
 
-    test "has 6 rows" do
+    test "contains current direction and score header" do
       game = Game.new()
-      rows = game |> Game.to_ascii() |> String.split("\n")
-      assert length(rows) == 6
+      ascii = Game.to_ascii(game)
+      assert String.contains?(ascii, "Current direction:")
+      assert String.contains?(ascii, "Score:")
     end
 
-    test "each row is 22 chars wide" do
+    test "board section has 6 rows of 22 chars" do
       game = Game.new()
-      game
-      |> Game.to_ascii()
-      |> String.split("\n")
-      |> Enum.each(fn row -> assert String.length(row) == 22 end)
+      board_rows =
+        game
+        |> Game.to_ascii()
+        |> String.split("\n")
+        |> Enum.filter(&(String.length(&1) == 22))
+
+      assert length(board_rows) == 6
     end
   end
 

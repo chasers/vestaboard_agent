@@ -33,26 +33,28 @@ defmodule VestaboardAgent.Snake.Game do
 
   @doc "Apply a direction and advance one step. Returns `{:ok, new_state}` or `{:error, :dead}`."
   @spec move(t(), direction()) :: {:ok, t()} | {:error, :dead}
-  def move(%{snake: [head | _] = snake, food: food, score: score} = state, direction) do
-    new_head = step(head, direction)
+  def move(%{snake: [head | _] = snake, food: food, score: score, direction: current} = state, direction) do
+    # Ignore reversal — use current direction instead (classic snake rule)
+    effective = if direction == opposite(current), do: current, else: direction
+    new_head = step(head, effective)
 
     cond do
       out_of_bounds?(new_head) -> {:error, :dead}
       new_head in snake -> {:error, :dead}
       true ->
         if new_head == food do
-          new_state = %{state | snake: [new_head | snake], direction: direction, score: score + 1}
+          new_state = %{state | snake: [new_head | snake], direction: effective, score: score + 1}
           {:ok, place_food(new_state)}
         else
           new_snake = [new_head | Enum.drop(snake, -1)]
-          {:ok, %{state | snake: new_snake, direction: direction}}
+          {:ok, %{state | snake: new_snake, direction: effective}}
         end
     end
   end
 
   @doc "Render the game state as an ASCII map for the LLM (H=head, B=body, F=food, .=empty)."
   @spec to_ascii(t()) :: String.t()
-  def to_ascii(%{snake: [head | body], food: food}) do
+  def to_ascii(%{snake: [head | body], food: food, direction: dir, score: score}) do
     grid =
       for r <- 0..(@rows - 1) do
         for c <- 0..(@cols - 1) do
@@ -67,7 +69,8 @@ defmodule VestaboardAgent.Snake.Game do
         |> Enum.join()
       end
 
-    Enum.join(grid, "\n")
+    board = Enum.join(grid, "\n")
+    "Current direction: #{dir |> Atom.to_string() |> String.upcase()}\nScore: #{score}\n#{board}"
   end
 
   @doc "Render the game state as a 6×22 color-code grid for direct Vestaboard dispatch."
@@ -100,6 +103,11 @@ defmodule VestaboardAgent.Snake.Game do
   defp step({r, c}, :down),  do: {r + 1, c}
   defp step({r, c}, :left),  do: {r, c - 1}
   defp step({r, c}, :right), do: {r, c + 1}
+
+  defp opposite(:up), do: :down
+  defp opposite(:down), do: :up
+  defp opposite(:left), do: :right
+  defp opposite(:right), do: :left
 
   defp out_of_bounds?({r, c}), do: r < 0 or r >= @rows or c < 0 or c >= @cols
 
