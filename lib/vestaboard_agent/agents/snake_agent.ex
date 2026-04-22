@@ -6,10 +6,9 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
   by reading an ASCII representation of the board. The game runs until
   the snake dies, then displays a GAME OVER frame with the final score.
 
-  Pacing is driven by board backpressure: if the board returns 429
-  the Client.Local retry loop provides natural delay (~1-7s). If all
-  retries are exhausted the frame is skipped silently and the game
-  continues. No fixed sleep is used.
+  After each successful write, the agent polls the board until it reads
+  back the frame it just sent. This ensures the board has rendered each
+  frame before the next one is dispatched.
   """
 
   require Logger
@@ -78,6 +77,9 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
     end
   end
 
+  @frame_poll_interval_ms 100
+  @frame_poll_max_attempts 20
+
   # --- Game loop ---
 
   defp play(game, _llm_opts, dispatch_fn, _read_fn, 0) do
@@ -86,11 +88,13 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
   end
 
   defp play(game, llm_opts, dispatch_fn, read_fn, moves_left) do
-    case dispatch_fn.(Game.to_grid(game)) do
+    grid = Game.to_grid(game)
+
+    case dispatch_fn.(grid) do
       {:error, reason} ->
         Logger.error("[snake] frame skipped (#{inspect(reason)})")
       _ ->
-        await_board_ready(read_fn)
+        await_frame_applied(read_fn, grid)
     end
 
     safe = Game.safe_moves(game)
@@ -138,13 +142,23 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
     dispatch_fn.(Game.game_over_grid(game))
   end
 
-  # Read the board state back after each write. The round-trip acts as a sync
-  # point: we don't compute the next frame until the board has processed the
-  # current one. Errors are logged but don't stop the game.
-  defp await_board_ready(read_fn) do
+  # Poll until the board reflects the frame we just sent, or until we exhaust
+  # retries. This confirms the display has moved on to the new frame before we
+  # compute the next move.
+  defp await_frame_applied(read_fn, expected_grid, attempt \\ 0) do
     case read_fn.() do
-      {:ok, _} -> :ok
-      {:error, reason} -> Logger.warning("[snake] board read failed: #{inspect(reason)}")
+      {:ok, ^expected_grid} ->
+        :ok
+
+      {:ok, _other} when attempt < @frame_poll_max_attempts ->
+        Process.sleep(@frame_poll_interval_ms)
+        await_frame_applied(read_fn, expected_grid, attempt + 1)
+
+      {:ok, _other} ->
+        Logger.warning("[snake] board did not reflect sent frame after #{@frame_poll_max_attempts} attempts")
+
+      {:error, reason} ->
+        Logger.warning("[snake] board read failed: #{inspect(reason)}")
     end
   end
 end

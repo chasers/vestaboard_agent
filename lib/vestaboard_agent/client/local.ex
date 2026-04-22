@@ -34,12 +34,22 @@ defmodule VestaboardAgent.Client.Local do
   @impl true
   def read do
     case Req.get(request(), url: @path) do
-      {:ok, %{status: 200, body: body}} when is_list(body) -> {:ok, body}
-      {:ok, %{status: 200, body: body}} -> {:ok, body}
+      {:ok, %{status: 200, body: body}} -> parse_read_body(body)
       {:ok, %{status: status}} -> {:error, {:http, status}}
       {:error, reason} -> {:error, reason}
     end
   end
+
+  defp parse_read_body(body) when is_list(body), do: {:ok, body}
+  defp parse_read_body(%{"message" => grid}) when is_list(grid), do: {:ok, grid}
+  defp parse_read_body(body) when is_binary(body) do
+    case Jason.decode(body) do
+      {:ok, grid} when is_list(grid) -> {:ok, grid}
+      {:ok, %{"message" => grid}} when is_list(grid) -> {:ok, grid}
+      _ -> {:ok, body}
+    end
+  end
+  defp parse_read_body(body), do: {:ok, body}
 
   @impl true
   def write_characters(chars) when is_list(chars) do
