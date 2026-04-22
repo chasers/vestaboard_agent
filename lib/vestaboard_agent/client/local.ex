@@ -22,10 +22,14 @@ defmodule VestaboardAgent.Client.Local do
   This returns an API key which you then store in config.
   """
 
+  require Logger
+
   @behaviour VestaboardAgent.Client
 
   @default_base_url "http://vestaboard.local:7000"
   @path "/local-api/message"
+  @max_retries 3
+  @base_backoff_ms 1_000
 
   @impl true
   def read do
@@ -39,11 +43,36 @@ defmodule VestaboardAgent.Client.Local do
 
   @impl true
   def write_characters(chars) when is_list(chars) do
+    do_write(chars, 0)
+  end
+
+  defp do_write(chars, attempt) do
     case Req.post(request(), url: @path, json: chars) do
-      {:ok, %{status: s, body: body}} when s in 200..299 -> {:ok, body}
-      {:ok, %{status: status}} -> {:error, {:http, status}}
-      {:error, reason} -> {:error, reason}
+      {:ok, %{status: s, body: body}} when s in 200..299 ->
+        {:ok, body}
+
+      {:ok, %{status: 429}} when attempt < @max_retries ->
+        wait = backoff_ms(attempt)
+        Logger.warning("Vestaboard 429 rate-limited — retry #{attempt + 1}/#{@max_retries} in #{wait}ms")
+        Process.sleep(wait)
+        do_write(chars, attempt + 1)
+
+      {:ok, %{status: 429}} ->
+        Logger.error("Vestaboard 429 rate-limited — all #{@max_retries} retries exhausted")
+        {:error, :rate_limited}
+
+      {:ok, %{status: status}} ->
+        {:error, {:http, status}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
+  end
+
+  defp backoff_ms(attempt) do
+    base = VestaboardAgent.Client.config(:backoff_base_ms, @base_backoff_ms)
+    jitter = :rand.uniform(200) - 100
+    (base * :math.pow(2, attempt)) |> round() |> Kernel.+(jitter) |> max(0)
   end
 
   @doc """

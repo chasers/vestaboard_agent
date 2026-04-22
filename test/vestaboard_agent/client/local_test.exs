@@ -14,7 +14,8 @@ defmodule VestaboardAgent.Client.LocalTest do
       backend: Local,
       api_key: "local-test-key",
       base_url: "http://vestaboard.local:7000",
-      plug: {Req.Test, __MODULE__}
+      plug: {Req.Test, __MODULE__},
+      backoff_base_ms: 0
     )
 
     :ok
@@ -61,6 +62,33 @@ defmodule VestaboardAgent.Client.LocalTest do
       end)
 
       assert {:error, {:http, 503}} = Local.write_characters(@grid)
+    end
+
+    test "retries on 429 and succeeds when board responds 200" do
+      counter = :counters.new(1, [])
+
+      Req.Test.stub(__MODULE__, fn conn ->
+        n = :counters.get(counter, 1)
+        :counters.add(counter, 1, 1)
+
+        if n == 0 do
+          Plug.Conn.send_resp(conn, 429, "rate limited")
+        else
+          Req.Test.json(conn, %{"ok" => true})
+        end
+      end)
+
+      # Override sleep so the test doesn't actually wait 1s
+      assert {:ok, %{"ok" => true}} = Local.write_characters(@grid)
+      assert :counters.get(counter, 1) == 2
+    end
+
+    test "returns {:error, :rate_limited} after all retries exhausted" do
+      Req.Test.stub(__MODULE__, fn conn ->
+        Plug.Conn.send_resp(conn, 429, "rate limited")
+      end)
+
+      assert {:error, :rate_limited} = Local.write_characters(@grid)
     end
   end
 

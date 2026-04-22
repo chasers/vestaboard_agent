@@ -189,6 +189,20 @@ LLM-driven Snake game on the Vestaboard. Triggered by "play snake". The LLM deci
 
 ---
 
+## Phase 11 — Rate-limit handling (429)
+
+The Vestaboard local API returns 429 when writes are too frequent. Currently these surface as `{:error, {:http, 429}}` and the write is silently dropped.
+
+**Strategy**: exponential backoff with jitter in `Client.Local.write_characters/1`. Up to 3 retries: wait ~1s, ~2s, ~4s. If all retries are exhausted return `{:error, :rate_limited}`. The Dispatcher and higher layers see either `{:ok, _}` or an error — no change to their interface.
+
+| | Item | Notes |
+|---|---|---|
+| ✅ | **11a** Retry loop in `Client.Local.write_characters/1` | On 429: sleep with exponential backoff (1s → 2s → 4s + jitter), retry up to 3 times; return `{:error, :rate_limited}` after exhaustion |
+| ✅ | **11b** Log each retry attempt | `Logger.warning` with attempt number and wait time |
+| ✅ | **11c** Unit tests | Stub returning 429 then 200; stub returning 429 × 4 (exhaustion); `backoff_base_ms: 0` in test config keeps suite fast |
+
+---
+
 ## Backlog
 
 - [ ] `Countdown` tool — days/hours/minutes until a target datetime
