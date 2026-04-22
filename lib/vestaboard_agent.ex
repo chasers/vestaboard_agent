@@ -18,8 +18,13 @@ defmodule VestaboardAgent do
 
   alias VestaboardAgent.{Agent.Registry, ConversationContext, Dispatcher, Formatter}
 
+  @display_lock_key :active_display
+
   @doc """
   Route `prompt` to the right agent, format the result, and send it to the board.
+
+  Any currently running long-running agent (e.g. snake game) is stopped before
+  the new prompt is processed.
 
   Pass `llm_opts:` to inject HTTP stubs in tests.
   Returns `{:ok, map()}` on a successful board write, `{:ok, :done}` when an
@@ -27,6 +32,17 @@ defmodule VestaboardAgent do
   """
   @spec display(String.t(), keyword()) :: {:ok, map()} | {:ok, :done} | {:error, term()}
   def display(prompt, opts \\ []) do
+    preempt_running_display()
+    :ets.insert(:display_lock, {@display_lock_key, self()})
+
+    try do
+      do_display(prompt, opts)
+    after
+      :ets.delete(:display_lock, @display_lock_key)
+    end
+  end
+
+  defp do_display(prompt, opts) do
     llm_opts = Keyword.get(opts, :llm_opts, [])
     history = ConversationContext.history()
     context = %{llm_opts: llm_opts, history: history}
@@ -53,6 +69,27 @@ defmodule VestaboardAgent do
 
       {:error, _} = err ->
         err
+    end
+  end
+
+  defp preempt_running_display do
+    case :ets.lookup(:display_lock, @display_lock_key) do
+      [{@display_lock_key, pid}] when pid != self() ->
+        if Process.alive?(pid) do
+          require Logger
+          Logger.info("[display] stopping running agent (#{inspect(pid)}) for new prompt")
+          Process.exit(pid, :kill)
+          ref = Process.monitor(pid)
+          receive do
+            {:DOWN, ^ref, :process, ^pid, _} -> :ok
+          after
+            3_000 -> :ok
+          end
+        end
+        :ets.delete(:display_lock, @display_lock_key)
+
+      _ ->
+        :ok
     end
   end
 end
