@@ -24,7 +24,7 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
   # Default minimum wall-clock time between frames. The board physically takes
   # ~1-2s to render even when the API acknowledges quickly. Override via
   # context: %{min_frame_ms: 0} in tests to skip the delay.
-  @default_min_frame_ms 2_000
+  @default_min_frame_ms 20_000
 
   @impl true
   def name, do: "snake"
