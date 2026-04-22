@@ -16,7 +16,7 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
 
   @behaviour VestaboardAgent.Agent
 
-  alias VestaboardAgent.{Dispatcher, LLM, Snake.Game}
+  alias VestaboardAgent.{Client, Dispatcher, LLM, Snake.Game}
 
   @lock_key :snake_running
 
@@ -32,9 +32,10 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
       try do
         llm_opts = Map.get(context, :llm_opts, [])
         dispatch_fn = Map.get(context, :dispatch_fn, &Dispatcher.dispatch/1)
+        read_fn = Map.get(context, :read_fn, &Client.read/0)
         max_moves = Map.get(context, :max_moves, :infinity)
         game = Game.new()
-        play(game, llm_opts, dispatch_fn, max_moves)
+        play(game, llm_opts, dispatch_fn, read_fn, max_moves)
         {:ok, :done}
       after
         release_lock()
@@ -79,17 +80,17 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
 
   # --- Game loop ---
 
-  defp play(game, _llm_opts, dispatch_fn, 0) do
+  defp play(game, _llm_opts, dispatch_fn, _read_fn, 0) do
     Logger.info("[snake] max_moves reached — ending game (score #{game.score})")
     game_over(game, dispatch_fn)
   end
 
-  defp play(game, llm_opts, dispatch_fn, moves_left) do
+  defp play(game, llm_opts, dispatch_fn, read_fn, moves_left) do
     case dispatch_fn.(Game.to_grid(game)) do
       {:error, reason} ->
         Logger.error("[snake] frame skipped (#{inspect(reason)})")
       _ ->
-        :ok
+        await_board_ready(read_fn)
     end
 
     safe = Game.safe_moves(game)
@@ -107,7 +108,7 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
       next_left = if moves_left == :infinity, do: :infinity, else: moves_left - 1
 
       case Game.move(game, direction) do
-        {:ok, new_game} -> play(new_game, llm_opts, dispatch_fn, next_left)
+        {:ok, new_game} -> play(new_game, llm_opts, dispatch_fn, read_fn, next_left)
         {:error, :dead} ->
           Logger.info("[snake] died on #{direction} — game over (score #{game.score})")
           game_over(game, dispatch_fn)
@@ -135,5 +136,15 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
 
   defp game_over(game, dispatch_fn) do
     dispatch_fn.(Game.game_over_grid(game))
+  end
+
+  # Read the board state back after each write. The round-trip acts as a sync
+  # point: we don't compute the next frame until the board has processed the
+  # current one. Errors are logged but don't stop the game.
+  defp await_board_ready(read_fn) do
+    case read_fn.() do
+      {:ok, _} -> :ok
+      {:error, reason} -> Logger.warning("[snake] board read failed: #{inspect(reason)}")
+    end
   end
 end

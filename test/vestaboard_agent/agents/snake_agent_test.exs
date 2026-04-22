@@ -28,6 +28,7 @@ defmodule VestaboardAgent.Agents.SnakeAgentTest do
       assert {:ok, :done} = SnakeAgent.handle("play snake", %{
         llm_opts: [plug: plug],
         dispatch_fn: fn _grid -> :ok end,
+        read_fn: fn -> {:ok, []} end,
         max_moves: 3
       })
     end
@@ -42,6 +43,7 @@ defmodule VestaboardAgent.Agents.SnakeAgentTest do
       assert {:ok, :done} = SnakeAgent.handle("play snake", %{
         llm_opts: [plug: plug],
         dispatch_fn: fn _grid -> :ok end,
+        read_fn: fn -> {:ok, []} end,
         max_moves: 5
       })
     end
@@ -56,6 +58,7 @@ defmodule VestaboardAgent.Agents.SnakeAgentTest do
       SnakeAgent.handle("play snake", %{
         llm_opts: [plug: plug],
         dispatch_fn: fn grid -> :ets.insert(grids, {:grid, grid}); :ok end,
+        read_fn: fn -> {:ok, []} end,
         max_moves: 3
       })
 
