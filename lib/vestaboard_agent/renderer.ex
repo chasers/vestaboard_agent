@@ -109,6 +109,39 @@ defmodule VestaboardAgent.Renderer do
   @spec encode_char(String.t()) :: integer()
   def encode_char(char), do: Map.get(@char_map, char, @blank)
 
+  @inverted_char_map Map.new(@char_map, fn {ch, code} -> {code, ch} end)
+  @color_code_values Map.values(@color_codes)
+
+  @doc """
+  Decode a 6×22 Vestaboard character code grid back to human-readable text.
+
+  Border rows/columns (uniform color-code tiles) are stripped before decoding.
+  Blank rows are removed. Returns the non-empty lines joined with newlines.
+  """
+  @spec decode_grid([[integer()]]) :: String.t()
+  def decode_grid(grid) do
+    rows =
+      case border_color(grid) do
+        nil -> grid
+        _color -> grid |> Enum.slice(1, @rows - 2) |> Enum.map(&Enum.slice(&1, 1, @cols - 2))
+      end
+
+    rows
+    |> Enum.map(fn row ->
+      row
+      |> Enum.map(&Map.get(@inverted_char_map, &1, ""))
+      |> Enum.join()
+      |> String.trim()
+    end)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join("\n")
+  end
+
+  defp border_color([first_row | _]) do
+    code = hd(first_row)
+    if code in @color_code_values and Enum.all?(first_row, &(&1 == code)), do: code
+  end
+
   # --- Private ---
 
   defp resolve_color(name) when name in @color_names, do: Map.fetch!(@color_codes, name)

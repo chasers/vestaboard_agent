@@ -48,16 +48,41 @@ defmodule VestaboardAgent.LLM do
   end
 
   @doc """
+  Parse a natural-language scheduling request into a tool name and interval.
+
+  `tool_names` is a list of available tool name strings. Returns
+  `{:ok, %{tool: String.t(), interval_seconds: pos_integer()}}` or `{:error, reason}`.
+  """
+  @spec parse_schedule(String.t(), [String.t()], keyword()) ::
+          {:ok, %{tool: String.t(), interval_seconds: pos_integer()}} | {:error, term()}
+  def parse_schedule(prompt, tool_names, opts \\ []) do
+    with {:ok, raw} <- complete(schedule_prompt(prompt, tool_names), opts),
+         {:ok, map} <- Jason.decode(raw),
+         %{"tool" => tool, "interval_seconds" => secs}
+         when is_binary(tool) and is_integer(secs) and secs > 0 <- map do
+      {:ok, %{tool: tool, interval_seconds: secs}}
+    else
+      %{} -> {:error, :invalid_schedule_response}
+      {:error, _} = err -> err
+    end
+  end
+
+  @doc """
   Ask the LLM which registered agent should handle `prompt`.
 
   `agents_meta` is a list of `{name_string, keywords_list}` tuples built from
   the registered agents. Returns `{:ok, agent_name_string}` or `{:error, reason}`.
   The returned name is always downcased and trimmed.
+
+  Pass `history:` in opts (list of `%{prompt, text, render_opts}` maps, newest
+  first) to help the LLM resolve follow-ups like "do that again".
   """
   @spec route_agent(String.t(), [{String.t(), [String.t()]}], keyword()) ::
           {:ok, String.t()} | {:error, term()}
   def route_agent(prompt, agents_meta, opts \\ []) do
-    with {:ok, name} <- complete(routing_prompt(prompt, agents_meta), opts) do
+    history = Keyword.get(opts, :history, [])
+
+    with {:ok, name} <- complete(routing_prompt(prompt, agents_meta, history), opts) do
       {:ok, name |> String.trim() |> String.downcase()}
     end
   end
@@ -127,7 +152,7 @@ defmodule VestaboardAgent.LLM do
     end
   end
 
-  defp routing_prompt(prompt, agents_meta) do
+  defp routing_prompt(prompt, agents_meta, history) do
     agent_list =
       agents_meta
       |> Enum.map(fn
@@ -136,13 +161,29 @@ defmodule VestaboardAgent.LLM do
       end)
       |> Enum.join("\n")
 
+    history_section =
+      if history == [] do
+        ""
+      else
+        lines =
+          history
+          |> Enum.with_index(1)
+          |> Enum.map(fn {%{prompt: p}, i} -> "#{i}. \"#{p}\"" end)
+          |> Enum.join("\n")
+
+        "\nRecent prompts (most recent first):\n#{lines}\n"
+      end
+
     """
     Route this user request to the correct handler for a Vestaboard display.
-
+    #{history_section}
     User prompt: "#{prompt}"
 
     Available handlers:
     #{agent_list}
+
+    If the prompt is a follow-up (e.g. "do that again", "same but different color"),
+    route to the same handler as the most recent prompt above.
 
     Reply with ONLY the handler name that best matches.
     If none fit well, reply with "dynamic".
@@ -190,6 +231,26 @@ defmodule VestaboardAgent.LLM do
     Task: #{task_description}
 
     Return ONLY the Lua script. No explanation, no markdown fences.
+    """
+  end
+
+  defp schedule_prompt(prompt, tool_names) do
+    """
+    Parse this scheduling request for a Vestaboard display.
+
+    User request: "#{prompt}"
+
+    Available tools: #{Enum.join(tool_names, ", ")}
+
+    Respond with a JSON object only, no explanation, no markdown:
+    {"tool": "<tool name from the list>", "interval_seconds": <positive integer>}
+
+    Examples:
+    "show clock every 15 seconds" -> {"tool": "clock", "interval_seconds": 15}
+    "show weather every 5 minutes" -> {"tool": "weather", "interval_seconds": 300}
+    "display a quote every hour" -> {"tool": "quote", "interval_seconds": 3600}
+
+    If no tool matches, pick the closest one.
     """
   end
 end

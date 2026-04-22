@@ -50,4 +50,34 @@ defmodule VestaboardAgent.FormatterTest do
     opts = llm_opts(fenced)
     assert {:ok, "OK", [border: "green"]} = Formatter.format("ok", opts)
   end
+
+  describe "history-aware formatting" do
+    test "includes history in LLM prompt when provided" do
+      parent = self()
+
+      opts = [
+        history: [%{prompt: "show weather", text: "SUNNY 72F", render_opts: [border: "blue"]}],
+        llm_opts: [
+          plug: fn conn ->
+            {:ok, body, conn} = Plug.Conn.read_body(conn)
+            decoded = Jason.decode!(body)
+            prompt_text = get_in(decoded, ["messages", Access.at(0), "content"])
+            send(parent, {:prompt, prompt_text})
+            Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => ~s({"text": "SUNNY", "border_color": "orange"})}]})
+          end
+        ]
+      ]
+
+      assert {:ok, "SUNNY", [border: "orange"]} = Formatter.format("make it orange", opts)
+
+      assert_receive {:prompt, prompt_text}
+      assert String.contains?(prompt_text, "show weather")
+      assert String.contains?(prompt_text, "SUNNY 72F")
+    end
+
+    test "works without history (no history key)" do
+      opts = llm_opts(~s({"text": "HELLO", "border_color": "red"}))
+      assert {:ok, "HELLO", [border: "red"]} = Formatter.format("hello", opts)
+    end
+  end
 end

@@ -11,9 +11,12 @@ defmodule VestaboardAgent do
   Prompts are routed through the agent registry (keyword match → LLM routing →
   dynamic Lua tool generation). The agent's output is then formatted by the LLM
   (layout + border color) and sent to the board.
+
+  Conversation history (last 5 board states) is automatically passed to the LLM
+  on each call, enabling follow-up prompts like "make it bigger" or "do that again".
   """
 
-  alias VestaboardAgent.{Agent.Registry, Dispatcher, Formatter}
+  alias VestaboardAgent.{Agent.Registry, ConversationContext, Dispatcher, Formatter}
 
   @doc """
   Route `prompt` to the right agent, format the result, and send it to the board.
@@ -25,12 +28,22 @@ defmodule VestaboardAgent do
   @spec display(String.t(), keyword()) :: {:ok, map()} | {:ok, :done} | {:error, term()}
   def display(prompt, opts \\ []) do
     llm_opts = Keyword.get(opts, :llm_opts, [])
-    context = %{llm_opts: llm_opts}
+    history = ConversationContext.history()
+    context = %{llm_opts: llm_opts, history: history}
 
     case Registry.handle(prompt, context) do
       {:ok, text} when is_binary(text) ->
-        {:ok, formatted, render_opts} = Formatter.format(text, opts)
-        Dispatcher.dispatch(formatted, render_opts)
+        format_opts = Keyword.merge(opts, history: history)
+        {:ok, formatted, render_opts} = Formatter.format(text, format_opts)
+
+        case Dispatcher.dispatch(formatted, render_opts) do
+          {:ok, _} = result ->
+            ConversationContext.push(prompt, formatted, render_opts)
+            result
+
+          {:error, _} = err ->
+            err
+        end
 
       {:ok, :done} ->
         {:ok, :done}

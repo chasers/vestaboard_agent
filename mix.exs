@@ -28,7 +28,8 @@ defmodule VestaboardAgent.MixProject do
       {:req, "~> 0.5"},
       {:jason, "~> 1.4"},
       {:quantum, "~> 3.0"},
-      {:plug, "~> 1.0", only: :test},
+      {:plug, "~> 1.16"},
+      {:bandit, "~> 1.0"},
       {:excoveralls, "~> 0.18", only: :test}
     ]
   end

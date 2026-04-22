@@ -59,6 +59,32 @@ defmodule VestaboardAgent.DispatcherTest do
     end
   end
 
+  describe "last_board/0" do
+    test "returns nil before any dispatch" do
+      :sys.replace_state(Dispatcher, fn _ -> %{last_board: nil} end)
+      assert Dispatcher.last_board() == nil
+    end
+
+    test "returns grid and decoded text after a successful dispatch" do
+      stub_req(fn conn -> Req.Test.json(conn, %{"id" => "lb-1"}) end)
+      Dispatcher.dispatch("HELLO")
+
+      board = Dispatcher.last_board()
+      assert %{grid: grid, text: text} = board
+      assert is_list(grid) and length(grid) == 6
+      assert String.contains?(text, "HELLO")
+    end
+
+    test "is updated by dispatch_tool as well" do
+      stub_req(fn conn -> Req.Test.json(conn, %{"id" => "lb-2"}) end)
+      # Use the fully-qualified name since StubTool is defined later in this file
+      Dispatcher.dispatch_tool(VestaboardAgent.DispatcherTest.StubTool)
+
+      assert %{text: text} = Dispatcher.last_board()
+      assert String.contains?(text, "STUB OUTPUT")
+    end
+  end
+
   describe "dispatch_tool/2" do
     defmodule StubTool do
       @behaviour VestaboardAgent.Tool

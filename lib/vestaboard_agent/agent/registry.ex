@@ -65,9 +65,11 @@ defmodule VestaboardAgent.Agent.Registry do
 
       {:error, :no_match} ->
         llm_opts = Map.get(context, :llm_opts, [])
+        history = Map.get(context, :history, [])
         agents_meta = Enum.map(agents(), fn a -> {a.name(), a.keywords()} end)
+        routing_opts = Keyword.put(llm_opts, :history, history)
 
-        case LLM.route_agent(prompt, agents_meta, llm_opts) do
+        case LLM.route_agent(prompt, agents_meta, routing_opts) do
           {:ok, name} ->
             case find_by_name(name) do
               {:ok, agent} -> agent.handle(prompt, context)

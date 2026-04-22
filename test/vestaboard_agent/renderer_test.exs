@@ -154,4 +154,34 @@ defmodule VestaboardAgent.RendererTest do
       assert Renderer.encode_char("😀") == 0
     end
   end
+
+  describe "decode_grid/1" do
+    test "round-trips a simple text message" do
+      {:ok, grid} = Renderer.render("HELLO")
+      assert Renderer.decode_grid(grid) == "HELLO"
+    end
+
+    test "round-trips multi-line text" do
+      {:ok, grid} = Renderer.render("HELLO\nWORLD")
+      decoded = Renderer.decode_grid(grid)
+      assert decoded == "HELLO\nWORLD"
+    end
+
+    test "strips the border and decodes inner content" do
+      {:ok, grid} = Renderer.render("HOT TODAY", border: "red")
+      decoded = Renderer.decode_grid(grid)
+      assert decoded == "HOT TODAY"
+      refute String.contains?(decoded, "°")
+    end
+
+    test "returns empty string for a blank grid" do
+      blank_grid = List.duplicate(List.duplicate(0, 22), 6)
+      assert Renderer.decode_grid(blank_grid) == ""
+    end
+
+    test "decodes numbers" do
+      {:ok, grid} = Renderer.render("42")
+      assert Renderer.decode_grid(grid) == "42"
+    end
+  end
 end

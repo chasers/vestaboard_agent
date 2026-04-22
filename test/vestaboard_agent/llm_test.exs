@@ -132,5 +132,74 @@ defmodule VestaboardAgent.LLMTest do
 
       assert {:ok, "greeter"} = LLM.route_agent("say hello", agents_meta, opts)
     end
+
+    test "includes history in routing prompt when provided" do
+      parent = self()
+      agents_meta = [{"clock", ["time"]}, {"weather", ["weather"]}]
+
+      opts = [
+        history: [%{prompt: "show the clock", text: "12:34 PM", render_opts: []}],
+        plug: fn conn ->
+          {:ok, body, conn} = Plug.Conn.read_body(conn)
+          decoded = Jason.decode!(body)
+          prompt_text = get_in(decoded, ["messages", Access.at(0), "content"])
+          send(parent, {:prompt, prompt_text})
+          Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "clock"}]})
+        end
+      ]
+
+      assert {:ok, "clock"} = LLM.route_agent("do that again", agents_meta, opts)
+
+      assert_receive {:prompt, prompt_text}
+      assert String.contains?(prompt_text, "show the clock")
+    end
+  end
+
+  describe "parse_schedule/3" do
+    @tool_names ["clock", "weather", "quote"]
+
+    test "parses a valid schedule response" do
+      opts = opts_with_stub(fn ->
+        %{"content" => [%{"type" => "text", "text" => ~s({"tool":"clock","interval_seconds":15})}]}
+      end)
+
+      assert {:ok, %{tool: "clock", interval_seconds: 15}} =
+               LLM.parse_schedule("show clock every 15 seconds", @tool_names, opts)
+    end
+
+    test "parses minute-level interval" do
+      opts = opts_with_stub(fn ->
+        %{"content" => [%{"type" => "text", "text" => ~s({"tool":"weather","interval_seconds":300})}]}
+      end)
+
+      assert {:ok, %{tool: "weather", interval_seconds: 300}} =
+               LLM.parse_schedule("show weather every 5 minutes", @tool_names, opts)
+    end
+
+    test "returns error for invalid JSON response" do
+      opts = opts_with_stub(fn ->
+        %{"content" => [%{"type" => "text", "text" => "not json"}]}
+      end)
+
+      assert {:error, _} = LLM.parse_schedule("schedule something", @tool_names, opts)
+    end
+
+    test "returns error when interval_seconds is missing" do
+      opts = opts_with_stub(fn ->
+        %{"content" => [%{"type" => "text", "text" => ~s({"tool":"clock"})}]}
+      end)
+
+      assert {:error, :invalid_schedule_response} =
+               LLM.parse_schedule("schedule clock", @tool_names, opts)
+    end
+
+    test "returns error when interval_seconds is zero or negative" do
+      opts = opts_with_stub(fn ->
+        %{"content" => [%{"type" => "text", "text" => ~s({"tool":"clock","interval_seconds":0})}]}
+      end)
+
+      assert {:error, :invalid_schedule_response} =
+               LLM.parse_schedule("schedule clock", @tool_names, opts)
+    end
   end
 end

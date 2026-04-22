@@ -76,10 +76,10 @@ Turn the pipeline from a diagram into running code.
 
 | | Item | Notes |
 |---|---|---|
-| ⬜ | **6a** HTTP chat endpoint | `POST /chat` via Plug.Router; returns displayed text + border |
-| ⬜ | **6b** `ScheduleAgent` NLP wiring | Parse "show clock every 15 seconds" into a schedule call; extended cron for sub-minute intervals |
-| ⬜ | **6c** Conversation context | Track last N board states; pass to LLM so follow-ups ("make it bigger") work |
-| ⬜ | **6d** Board read-back | `GET /board` returns current grid + decoded text; include in LLM context |
+| ✅ | **6a** HTTP chat endpoint | `POST /chat` via Plug.Router; returns displayed text + border |
+| ✅ | **6b** `ScheduleAgent` NLP wiring | Parse "show clock every 15 seconds" into a schedule call; extended cron for sub-minute intervals |
+| ✅ | **6c** Conversation context | Track last N board states; pass to LLM so follow-ups ("make it bigger") work |
+| ✅ | **6d** Board read-back | `GET /board` returns current grid + decoded text; include in LLM context |
 
 ---
 
