@@ -15,7 +15,8 @@ defmodule VestaboardAgent.Application do
       VestaboardAgent.ToolRegistry,
       VestaboardAgent.AgentSupervisor,
       VestaboardAgent.Agent.Registry,
-      {Bandit, plug: VestaboardAgent.Router, port: http_port}
+      {Bandit, plug: VestaboardAgent.Router, port: http_port},
+      VestaboardAgent.TelegramBot
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: VestaboardAgent.Supervisor)

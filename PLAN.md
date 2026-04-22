@@ -144,6 +144,23 @@ E2E_REPORT_FILE=/tmp/e2e.jsonl mix test.e2e           # with report
 
 ---
 
+## Phase 8 — Telegram Bot
+
+Chat with your Vestaboard over Telegram. Uses long-polling (no public URL required).
+
+Required env vars: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_NAME`
+Optional env vars: `TELEGRAM_ALLOWED_USERS` (comma-separated chat IDs; if unset, bot accepts anyone)
+
+| | Item | Notes |
+|---|---|---|
+| ✅ | **8a** `TelegramBot` GenServer — long-poll `getUpdates` | Supervised; forwards message text to `VestaboardAgent.display/1`; replies with board text + elapsed |
+| ✅ | **8b** Reply formatting | Show decoded board text, border color, elapsed ms; confirm scheduled jobs; surface errors |
+| ✅ | **8c** `/status` and `/clear` commands | `/status` returns current board text; `/clear` blanks the board |
+| ✅ | **8d** Auth filter | Gate commands to `TELEGRAM_ALLOWED_USERS` whitelist; reject unknown users politely |
+| ⬜ | **8e** E2E tests | `test/e2e/07_telegram_test.exs`; sends real messages via Telegram API; requires `TELEGRAM_TEST_CHAT_ID` |
+
+---
+
 ## Backlog
 
 - [ ] `Countdown` tool — days/hours/minutes until a target datetime
