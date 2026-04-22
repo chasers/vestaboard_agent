@@ -82,7 +82,28 @@ defmodule VestaboardAgent.Snake.Game do
 
     safe = safe_moves(game) |> Enum.map(&(&1 |> Atom.to_string() |> String.upcase())) |> Enum.join(", ")
     board = Enum.join(grid, "\n")
-    "Current direction: #{dir |> Atom.to_string() |> String.upcase()}\nScore: #{score}\nSafe moves: #{safe}\n#{board}"
+
+    {hr, hc} = head
+    {fr, fc} = food
+    row_hint = cond do
+      fr < hr -> "food is UP (decrease row)"
+      fr > hr -> "food is DOWN (increase row)"
+      true -> "same row"
+    end
+    col_hint = cond do
+      fc < hc -> "food is LEFT (decrease col)"
+      fc > hc -> "food is RIGHT (increase col)"
+      true -> "same col"
+    end
+
+    """
+    Current direction: #{dir |> Atom.to_string() |> String.upcase()}
+    Score: #{score}
+    Head: row #{hr}, col #{hc}
+    Food: row #{fr}, col #{fc}  (#{row_hint}; #{col_hint})
+    Safe moves: #{safe}
+    #{board}\
+    """
   end
 
   @doc "Render the game state as a 6×22 color-code grid for direct Vestaboard dispatch."

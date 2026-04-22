@@ -305,11 +305,15 @@ defmodule VestaboardAgent.LLM do
 
     Legend: H=head, B=body, F=food, .=empty
 
-    Only choose from the moves listed under "Safe moves" above — those are the only
-    ones that won't immediately kill the snake. Pick the one that best moves the
-    head (H) toward the food (F) while avoiding getting cornered.
+    The board state above shows the head position, food position, and which
+    directions close the gap (row hint, col hint). Only the moves listed under
+    "Safe moves" are valid — any other move kills the snake immediately.
 
-    Reply with exactly one word from the safe moves list.
+    Choose the safe move that best closes the distance to the food, preferring
+    the direction that reduces the larger of the two gaps first. Avoid moves
+    that would box the snake in.
+
+    Reply with exactly one word: the chosen direction from the safe moves list.
     """
   end
 
