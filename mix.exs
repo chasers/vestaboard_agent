@@ -18,6 +18,10 @@ defmodule VestaboardAgent.MixProject do
   defp elixirc_paths(_), do: ["lib"]
 
   # Run "mix help compile.app" to learn about applications.
+  def cli do
+    [preferred_envs: ["test.e2e": :test]]
+  end
+
   def application do
     [
       mod: {VestaboardAgent.Application, []},

@@ -57,7 +57,7 @@ defmodule VestaboardAgent.LLM do
           {:ok, %{tool: String.t(), interval_seconds: pos_integer()}} | {:error, term()}
   def parse_schedule(prompt, tool_names, opts \\ []) do
     with {:ok, raw} <- complete(schedule_prompt(prompt, tool_names), opts),
-         {:ok, map} <- Jason.decode(raw),
+         {:ok, map} <- Jason.decode(strip_fences(raw)),
          %{"tool" => tool, "interval_seconds" => secs}
          when is_binary(tool) and is_integer(secs) and secs > 0 <- map do
       {:ok, %{tool: tool, interval_seconds: secs}}
@@ -146,7 +146,7 @@ defmodule VestaboardAgent.LLM do
   defp strip_fences(text) do
     trimmed = String.trim(text)
 
-    case Regex.run(~r/^```(?:lua)?\n(.*?)\n?```$/s, trimmed) do
+    case Regex.run(~r/^```(?:\w+)?\n(.*?)\n?```$/s, trimmed) do
       [_, code] -> String.trim(code)
       nil -> trimmed
     end

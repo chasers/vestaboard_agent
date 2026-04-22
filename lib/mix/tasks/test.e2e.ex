@@ -44,8 +44,7 @@ defmodule Mix.Tasks.Test.E2e do
     Mix.shell().info("Running E2E suite against #{System.get_env("VESTABOARD_BASE_URL", "http://vestaboard.local:7000")}")
 
     Mix.Task.run("test", [
-      "--only", "e2e",
-      "--require", "test/e2e/e2e_helper.exs"
+      "--only", "e2e"
       | (if args == [], do: ["test/e2e"], else: args)
     ])
   end

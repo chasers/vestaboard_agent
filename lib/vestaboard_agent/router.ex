@@ -19,6 +19,9 @@ defmodule VestaboardAgent.Router do
         {:ok, :running, _} ->
           send_json(conn, 200, %{ok: true, status: "running"})
 
+        {:ok, _} ->
+          send_json(conn, 200, %{ok: true})
+
         {:error, reason} ->
           send_json(conn, 500, %{ok: false, error: inspect(reason)})
       end

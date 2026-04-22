@@ -25,14 +25,18 @@ defmodule VestaboardAgent.E2E.EdgeCasesTest do
 
     test "unicode characters don't crash the pipeline" do
       result = e2e_display("show 日本語 text ñoño 🎉")
-      # Should not raise — unicode chars become blanks in the renderer
       assert result.display_result != nil
       refute match?({:error, %RuntimeError{}}, result.display_result)
     end
 
-    test "prompt with only special chars is handled" do
-      result = e2e_display("!!! ??? $$$")
-      assert result.display_result != nil
+    test "prompt with only special chars dispatches without crashing" do
+      # Bypass LLM routing — test Renderer handles special chars directly
+      assert {:ok, _} = Dispatcher.dispatch("!!! ??? $$$")
+      board = Dispatcher.last_board()
+      assert board != nil
+      assert String.contains?(board.text, "!")
+      assert String.contains?(board.text, "?")
+      assert String.contains?(board.text, "$")
     end
 
     test "repeated identical prompts each update the board" do
@@ -47,9 +51,10 @@ defmodule VestaboardAgent.E2E.EdgeCasesTest do
 
   describe "concurrent display calls" do
     test "two concurrent display/1 calls complete without crashing" do
+      # Use keyword-matching prompts so LLM routing is not required
       tasks =
         Task.async_stream(
-          ["say CONCURRENT A", "say CONCURRENT B"],
+          ["hello concurrent A", "hello concurrent B"],
           fn prompt -> VestaboardAgent.display(prompt) end,
           timeout: 30_000,
           max_concurrency: 2
@@ -69,8 +74,14 @@ defmodule VestaboardAgent.E2E.EdgeCasesTest do
 
   describe "LLM formatter fallback" do
     setup do
-      original = Application.get_env(:vestaboard_agent, :llm, [])
-      on_exit(fn -> Application.put_env(:vestaboard_agent, :llm, original) end)
+      original_cfg = Application.get_env(:vestaboard_agent, :llm, [])
+      original_key = System.get_env("ANTHROPIC_API_KEY")
+
+      on_exit(fn ->
+        Application.put_env(:vestaboard_agent, :llm, original_cfg)
+        if original_key, do: System.put_env("ANTHROPIC_API_KEY", original_key)
+      end)
+
       :ok
     end
 
@@ -78,9 +89,9 @@ defmodule VestaboardAgent.E2E.EdgeCasesTest do
       Application.put_env(:vestaboard_agent, :llm, api_key: nil)
       System.delete_env("ANTHROPIC_API_KEY")
 
+      # Use a keyword-matching prompt so agent routing doesn't need the LLM
       result = e2e_display("hello fallback test")
 
-      # Formatter falls back to raw text — the board should still be written
       assert match?({:ok, _}, result.display_result),
              "Expected {:ok, _} with fallback formatter, got: #{inspect(result.display_result)}"
 

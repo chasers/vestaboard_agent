@@ -20,6 +20,7 @@ defmodule VestaboardAgent.E2ECase do
   using do
     quote do
       @moduletag :e2e
+      @moduletag timeout: 60_000
       import VestaboardAgent.E2ECase
     end
   end

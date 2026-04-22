@@ -1,10 +1,13 @@
-.PHONY: iex test find enable ping
+.PHONY: iex test e2e find enable ping
 
 iex:
 	@set -a && . ./.env && set +a && iex -S mix
 
 test:
 	@mix test
+
+e2e:
+	@set -a && . ./.env && set +a && mix test.e2e
 
 find:
 	@elixir .scripts/find_vestaboard.exs
