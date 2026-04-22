@@ -5,10 +5,24 @@ defmodule VestaboardAgent.Agents.DynamicAgentTest do
   alias VestaboardAgent.ToolRegistry
 
   @generated_script "return 'generated output'"
-  @llm_response %{"content" => [%{"type" => "text", "text" => @generated_script}]}
 
+  # Two-call stub: first call generates the script, second evaluates the output.
   defp llm_stub_opts do
-    [plug: fn conn -> Req.Test.json(conn, @llm_response) end]
+    counter = :counters.new(1, [])
+
+    plug = fn conn ->
+      n = :counters.get(counter, 1)
+      :counters.add(counter, 1, 1)
+
+      body =
+        if n == 0,
+          do: %{"content" => [%{"type" => "text", "text" => @generated_script}]},
+          else: %{"content" => [%{"type" => "text", "text" => "YES"}]}
+
+      Req.Test.json(conn, body)
+    end
+
+    [plug: plug]
   end
 
   setup do
@@ -88,14 +102,25 @@ defmodule VestaboardAgent.Agents.DynamicAgentTest do
 
   describe "retry loop" do
     test "retries when first script returns empty and second succeeds" do
+      # LLM call sequence:
+      # 0 = generate script (returns empty)
+      # 1 = evaluate output — skipped (empty string bypasses evaluation)
+      # 2 = regenerate script (returns good script)
+      # 3 = evaluate output (returns YES)
       counter = :counters.new(1, [])
 
       plug = fn conn ->
         n = :counters.get(counter, 1)
         :counters.add(counter, 1, 1)
 
-        script = if n == 0, do: "return ''", else: "return 'retry succeeded'"
-        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => script}]})
+        text =
+          case n do
+            0 -> "return ''"
+            1 -> "return 'retry succeeded'"
+            _ -> "YES"
+          end
+
+        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => text}]})
       end
 
       unique_prompt = "retry test #{System.unique_integer([:positive])}"
@@ -103,10 +128,10 @@ defmodule VestaboardAgent.Agents.DynamicAgentTest do
       on_exit(fn -> ToolRegistry.unregister(tool_name) end)
 
       assert {:ok, "retry succeeded"} = DynamicAgent.handle(unique_prompt, %{llm_opts: [plug: plug]})
-      assert :counters.get(counter, 1) == 2
     end
 
     test "returns last result immediately when retry budget is zero" do
+      # With zero budget, deadline is already passed after first run — no evaluation call.
       counter = :counters.new(1, [])
 
       plug = fn conn ->

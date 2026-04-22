@@ -75,11 +75,26 @@ defmodule VestaboardAgent.Agent.RegistryTest do
     test "falls back to DynamicAgent when LLM returns an unknown name" do
       Application.put_env(:vestaboard_agent, :llm, api_key: "test-key")
 
-      unique_prompt = "completely unknown request #{System.unique_integer([:positive])}"
+      id = System.unique_integer([:positive])
+      unique_prompt = "unknown#{id} completely request"
+      tool_name = VestaboardAgent.Agents.DynamicAgent.derive_tool_name(unique_prompt)
+      on_exit(fn -> VestaboardAgent.ToolRegistry.unregister(tool_name) end)
 
-      # Both routing and script generation calls hit this stub
+      counter = :counters.new(1, [])
+
+      # Call 0: routing → unknown name; call 1: script gen; call 2: evaluate output
       script_stub = fn conn ->
-        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "return 'hello'"}]})
+        n = :counters.get(counter, 1)
+        :counters.add(counter, 1, 1)
+
+        text =
+          case n do
+            0 -> "unknown_agent"
+            1 -> "return 'hello'"
+            _ -> "YES"
+          end
+
+        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => text}]})
       end
 
       result = Registry.handle(unique_prompt, %{llm_opts: [plug: script_stub]})

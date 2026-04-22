@@ -1,4 +1,4 @@
-.PHONY: iex test e2e find enable ping
+.PHONY: iex test e2e find enable ping clear-tools
 
 iex:
 	@set -a && . ./.env && set +a && iex -S mix
@@ -17,3 +17,6 @@ enable:
 
 ping:
 	@set -a && . ./.env && set +a && elixir .scripts/test_connectivity.exs
+
+clear-tools:
+	@rm -f priv/lua_tools/*.lua && echo "Cleared priv/lua_tools/"

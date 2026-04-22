@@ -63,6 +63,20 @@ defmodule VestaboardAgent.LLM do
   end
 
   @doc """
+  Ask the LLM whether a script's output looks like real, useful data.
+
+  Returns `{:ok, :good}`, `{:ok, :bad}`, or `{:error, reason}`.
+  Pass `plug:` in opts to inject a test stub.
+  """
+  @spec evaluate_output(String.t(), String.t(), keyword()) ::
+          {:ok, :good | :bad} | {:error, term()}
+  def evaluate_output(task_description, output, opts \\ []) do
+    with {:ok, reply} <- complete(evaluate_prompt(task_description, output), opts) do
+      if String.upcase(String.trim(reply)) =~ ~r/^YES/, do: {:ok, :good}, else: {:ok, :bad}
+    end
+  end
+
+  @doc """
   Parse a natural-language scheduling request into a tool name and interval.
 
   `tool_names` is a list of available tool name strings. Returns
@@ -250,6 +264,23 @@ defmodule VestaboardAgent.LLM do
     Task: #{task_description}
 
     Return ONLY the Lua script. No explanation, no markdown fences.
+    """
+  end
+
+  defp evaluate_prompt(task_description, output) do
+    """
+    A Lua script was run to display information on a Vestaboard for this task:
+    "#{task_description}"
+
+    The script returned this output:
+    #{output}
+
+    Does this output contain real, useful data that actually answers the task?
+    Answer YES if the output looks like genuine data (e.g. a real score, price, temperature, answer).
+    Answer NO if it looks like an error, placeholder, fallback message, or empty/zero result
+    (e.g. "unavailable", "error", "N/A", "0", "nil", "failed to fetch").
+
+    Reply with only YES or NO.
     """
   end
 
