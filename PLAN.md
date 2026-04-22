@@ -173,6 +173,22 @@ Handle open-ended knowledge questions ("Who is god?", "What's the capital of Fra
 
 ---
 
+## Phase 10 — SnakeAgent
+
+LLM-driven Snake game on the Vestaboard. Triggered by "play snake". The LLM decides each move; the board updates every turn until the snake dies.
+
+**Board**: full 6×22 grid. Head = white (69), body = green (67), food = red (63), empty = 0.
+**Pacing**: each LLM call (~1s) naturally clocks the game.
+
+| | Item | Notes |
+|---|---|---|
+| ✅ | **10a** `Snake.Game` — pure game state | `new/0`, `move/2`, `place_food/1`; returns `{:ok, state}` or `{:error, :dead}` |
+| ✅ | **10b** `LLM.snake_move/2` | ASCII board (H/B/F/.) → UP/DOWN/LEFT/RIGHT |
+| ✅ | **10c** `SnakeAgent` | Keywords: "snake"; long-running supervised agent; dispatches 6×22 color grid each turn; "GAME OVER" final frame |
+| ✅ | **10d** Wire into registry | Add to `@default_agents` |
+
+---
+
 ## Backlog
 
 - [ ] `Countdown` tool — days/hours/minutes until a target datetime

@@ -63,6 +63,34 @@ defmodule VestaboardAgent.LLM do
   end
 
   @doc """
+  Ask the LLM which direction the snake should move.
+
+  `ascii_board` is the output of `Snake.Game.to_ascii/1`.
+  Returns `{:ok, direction}` where direction is `:up | :down | :left | :right`,
+  or `{:error, reason}`.
+  """
+  @spec snake_move(String.t(), keyword()) :: {:ok, :up | :down | :left | :right} | {:error, term()}
+  def snake_move(ascii_board, opts \\ []) do
+    with {:ok, reply} <- complete(snake_prompt(ascii_board), opts) do
+      case reply |> String.trim() |> String.upcase() do
+        "UP" -> {:ok, :up}
+        "DOWN" -> {:ok, :down}
+        "LEFT" -> {:ok, :left}
+        "RIGHT" -> {:ok, :right}
+        other ->
+          # Best-effort: pull the first direction word found
+          cond do
+            other =~ "UP" -> {:ok, :up}
+            other =~ "DOWN" -> {:ok, :down}
+            other =~ "LEFT" -> {:ok, :left}
+            other =~ "RIGHT" -> {:ok, :right}
+            true -> {:error, {:unrecognised_direction, reply}}
+          end
+      end
+    end
+  end
+
+  @doc """
   Ask the LLM whether a script's output looks like real, useful data.
 
   Returns `{:ok, :good}`, `{:ok, :bad}`, or `{:error, reason}`.
@@ -264,6 +292,21 @@ defmodule VestaboardAgent.LLM do
     Task: #{task_description}
 
     Return ONLY the Lua script. No explanation, no markdown fences.
+    """
+  end
+
+  defp snake_prompt(ascii_board) do
+    """
+    You are playing Snake on a 6-row × 22-column grid.
+
+    Current board (H=head, B=body, F=food, .=empty):
+    #{ascii_board}
+
+    Rules:
+    - Moving into a wall or your own body kills the snake
+    - Your goal is to reach the food (F) without dying
+
+    Reply with exactly one word: UP, DOWN, LEFT, or RIGHT.
     """
   end
 
