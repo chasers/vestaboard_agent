@@ -44,7 +44,7 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
   defp play(game, llm_opts, dispatch_fn, moves_left) do
     case dispatch_fn.(Game.to_grid(game)) do
       {:error, reason} ->
-        Logger.warning("[snake] frame skipped (#{inspect(reason)})")
+        Logger.error("[snake] frame skipped (#{inspect(reason)})")
       _ ->
         :ok
     end
