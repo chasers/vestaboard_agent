@@ -1,4 +1,18 @@
 defmodule VestaboardAgent.E2E.BoardRateTest do
+  @moduledoc """
+  Benchmarks real-world Vestaboard write and read-back latency.
+
+  Results as of 2026-04-22 (192.168.0.105, firmware Vestaboard/v4.1.0):
+
+    Write time (network round-trip):  10–43ms  (p50 ~19ms)
+    Read-back confirmation:           200–250ms (p50 ~200ms)
+    Total round-trip:                 271–326ms (p95 ~326ms)
+    Suggested min frame interval:     ~326ms
+
+  No rate limiting observed at 1s between frames. Zero-delay rapid-fire
+  appeared to crash/reboot the board — avoid sending faster than ~500ms.
+  """
+
   use VestaboardAgent.E2ECase
 
   @moduletag timeout: 300_000
