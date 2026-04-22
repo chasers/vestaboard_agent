@@ -20,3 +20,7 @@ The pattern that worked well:
 3. Let the failures guide the fix — the assertion message becomes the bug report
 
 This is a tighter loop than the typical "write code, manually test, write more code" cycle, and it scales naturally as the system gets more complex.
+
+### E2E tests as a product management tool
+
+The same harness is valuable from a product perspective. Instead of manually QAing each feature on the physical board — which is slow, hard to repeat, and easy to forget edge cases — new acceptance criteria can be expressed directly as test cases. Adding a new behavior to the product means adding a test that describes what "working" looks like, then running it. The test suite becomes a living spec of what the product is supposed to do, and regressions surface automatically rather than through manual re-testing.
