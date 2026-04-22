@@ -17,7 +17,7 @@ defmodule VestaboardAgent.Agents.DynamicAgent do
 
   @behaviour VestaboardAgent.Agent
 
-  alias VestaboardAgent.{Dispatcher, LLM, ToolRegistry}
+  alias VestaboardAgent.{LLM, ToolRegistry}
 
   @impl true
   def name, do: "dynamic"
@@ -30,28 +30,19 @@ defmodule VestaboardAgent.Agents.DynamicAgent do
     tool_name = derive_tool_name(prompt)
 
     case ToolRegistry.get(tool_name) do
-      {:ok, _} -> dispatch_tool(tool_name, context)
-      {:error, :not_found} -> generate_and_dispatch(tool_name, prompt, context)
+      {:ok, _} -> ToolRegistry.run(tool_name, context)
+      {:error, :not_found} -> generate_and_run(tool_name, prompt, context)
     end
   end
 
   # --- Private ---
 
-  defp dispatch_tool(tool_name, context) do
-    with {:ok, text} <- ToolRegistry.run(tool_name, context),
-         {:ok, _} <- Dispatcher.dispatch(text) do
-      {:ok, :done}
-    end
-  end
-
-  defp generate_and_dispatch(tool_name, prompt, context) do
+  defp generate_and_run(tool_name, prompt, context) do
     llm_opts = Map.get(context, :llm_opts, [])
 
     with {:ok, script} <- LLM.generate_tool_script(prompt, llm_opts),
-         :ok <- ToolRegistry.register_script(tool_name, script),
-         {:ok, text} <- ToolRegistry.run(tool_name, context),
-         {:ok, _} <- Dispatcher.dispatch(text) do
-      {:ok, :done}
+         :ok <- ToolRegistry.register_script(tool_name, script) do
+      ToolRegistry.run(tool_name, context)
     end
   end
 

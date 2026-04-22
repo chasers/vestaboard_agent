@@ -5,24 +5,41 @@ defmodule VestaboardAgent do
   ## Quick start
 
       VestaboardAgent.display("happy Tuesday")
+      VestaboardAgent.display("show weather")
+      VestaboardAgent.display("show the time")
 
-  This formats the message with the LLM (picking nice layout + border color),
-  renders it, and sends it to the board.
+  Prompts are routed through the agent registry (keyword match → LLM routing →
+  dynamic Lua tool generation). The agent's output is then formatted by the LLM
+  (layout + border color) and sent to the board.
   """
 
-  alias VestaboardAgent.{Dispatcher, Formatter}
+  alias VestaboardAgent.{Agent.Registry, Dispatcher, Formatter}
 
   @doc """
-  Format `prompt` with the LLM and send it to the Vestaboard.
+  Route `prompt` to the right agent, format the result, and send it to the board.
 
-  The LLM rewrites the text for the 6×22 grid and chooses a border color.
-  On LLM failure the raw prompt is sent without decoration.
-
-  Returns `{:ok, map()}` on success or `{:error, reason}` on board write failure.
+  Pass `llm_opts:` to inject HTTP stubs in tests.
+  Returns `{:ok, map()}` on a successful board write, `{:ok, :done}` when an
+  agent dispatched directly (scheduled agents), or `{:error, reason}`.
   """
-  @spec display(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  @spec display(String.t(), keyword()) :: {:ok, map()} | {:ok, :done} | {:error, term()}
   def display(prompt, opts \\ []) do
-    {:ok, text, render_opts} = Formatter.format(prompt, opts)
-    Dispatcher.dispatch(text, render_opts)
+    llm_opts = Keyword.get(opts, :llm_opts, [])
+    context = %{llm_opts: llm_opts}
+
+    case Registry.handle(prompt, context) do
+      {:ok, text} when is_binary(text) ->
+        {:ok, formatted, render_opts} = Formatter.format(text, opts)
+        Dispatcher.dispatch(formatted, render_opts)
+
+      {:ok, :done} ->
+        {:ok, :done}
+
+      {:ok, :running, _} = running ->
+        running
+
+      {:error, _} = err ->
+        err
+    end
   end
 end

@@ -1,26 +1,7 @@
 defmodule VestaboardAgent.Agents.GreeterTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   alias VestaboardAgent.Agents.Greeter
-
-  setup do
-    original = Application.get_env(:vestaboard_agent, :client, [])
-    on_exit(fn -> Application.put_env(:vestaboard_agent, :client, original) end)
-
-    Application.put_env(:vestaboard_agent, :client,
-      backend: VestaboardAgent.Client.Local,
-      api_key: "test-key",
-      base_url: "http://vestaboard.local:7000",
-      plug: {Req.Test, __MODULE__}
-    )
-
-    :ok
-  end
-
-  defp stub_req(fun) do
-    Req.Test.stub(__MODULE__, fun)
-    Req.Test.allow(__MODULE__, self(), Process.whereis(VestaboardAgent.Dispatcher))
-  end
 
   test "name/0 returns a string" do
     assert is_binary(Greeter.name())
@@ -36,18 +17,20 @@ defmodule VestaboardAgent.Agents.GreeterTest do
     assert function_exported?(Greeter, :handle, 2)
   end
 
-  test "handle/2 dispatches to the board and returns :done" do
-    stub_req(fn conn -> Req.Test.json(conn, %{"id" => "msg-1"}) end)
-    assert {:ok, :done} = Greeter.handle("say hello", %{})
+  test "handle/2 returns {:ok, text} with a greeting string" do
+    assert {:ok, text} = Greeter.handle("say hello", %{})
+    assert is_binary(text)
+    assert String.length(text) > 0
   end
 
   test "handle/2 injects current time when context has no :now" do
-    stub_req(fn conn -> Req.Test.json(conn, %{"id" => "msg-2"}) end)
-    assert {:ok, :done} = Greeter.handle("greet me", %{})
+    assert {:ok, text} = Greeter.handle("greet me", %{})
+    assert is_binary(text)
   end
 
-  test "handle/2 returns error when dispatch fails" do
-    stub_req(fn conn -> Plug.Conn.send_resp(conn, 503, "unavailable") end)
-    assert {:error, _} = Greeter.handle("hello", %{})
+  test "handle/2 returns a time-appropriate greeting" do
+    morning = ~U[2024-06-15 09:00:00Z]
+    assert {:ok, text} = Greeter.handle("hello", %{now: morning})
+    assert text =~ ~r/morning/i
   end
 end

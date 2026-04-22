@@ -16,12 +16,14 @@ defmodule VestaboardAgent.Agent do
   Handle a user prompt.
 
   Returns:
-    * `{:ok, :done}` — task complete, agent may be discarded
+    * `{:ok, text}` — agent produced content; the caller formats and dispatches it
+    * `{:ok, :done}` — agent already wrote to the board (scheduled agents, etc.)
     * `{:ok, :running, state}` — long-running; supervisor keeps it alive
     * `{:error, reason}` — something went wrong
   """
   @callback handle(prompt :: String.t(), context :: map()) ::
-              {:ok, :done}
+              {:ok, String.t()}
+              | {:ok, :done}
               | {:ok, :running, state :: term()}
               | {:error, term()}
 end

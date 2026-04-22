@@ -11,33 +11,10 @@ defmodule VestaboardAgent.Agents.DynamicAgentTest do
     [plug: fn conn -> Req.Test.json(conn, @llm_response) end]
   end
 
-  defp dispatcher_stub(fun) do
-    Req.Test.stub(VestaboardAgent.DispatcherTest, fun)
-    Req.Test.allow(
-      VestaboardAgent.DispatcherTest,
-      self(),
-      Process.whereis(VestaboardAgent.Dispatcher)
-    )
-  end
-
   setup do
-    original_client = Application.get_env(:vestaboard_agent, :client, [])
     original_llm = Application.get_env(:vestaboard_agent, :llm, [])
-
-    on_exit(fn ->
-      Application.put_env(:vestaboard_agent, :client, original_client)
-      Application.put_env(:vestaboard_agent, :llm, original_llm)
-    end)
-
-    Application.put_env(:vestaboard_agent, :client,
-      backend: VestaboardAgent.Client.Local,
-      api_key: "test-key",
-      base_url: "http://vestaboard.local:7000",
-      plug: {Req.Test, VestaboardAgent.DispatcherTest}
-    )
-
+    on_exit(fn -> Application.put_env(:vestaboard_agent, :llm, original_llm) end)
     Application.put_env(:vestaboard_agent, :llm, api_key: "test-anthropic-key")
-
     :ok
   end
 
@@ -74,31 +51,24 @@ defmodule VestaboardAgent.Agents.DynamicAgentTest do
   end
 
   describe "handle/2 with existing tool" do
-    test "dispatches without calling the LLM when tool already registered" do
+    test "returns {:ok, text} without calling the LLM when tool already registered" do
       name = :"existing_tool_#{System.unique_integer([:positive])}"
       ToolRegistry.register_script(name, "return 'cached result'")
       on_exit(fn -> ToolRegistry.unregister(name) end)
 
-      dispatcher_stub(fn conn -> Req.Test.json(conn, %{"id" => "msg-1"}) end)
-
       prompt = Atom.to_string(name) |> String.replace("_", " ")
-      assert {:ok, :done} = DynamicAgent.handle(prompt, %{})
+      assert {:ok, "cached result"} = DynamicAgent.handle(prompt, %{})
     end
   end
 
   describe "handle/2 with LLM generation" do
-    test "generates a script and dispatches when tool is unknown" do
-      dispatcher_stub(fn conn -> Req.Test.json(conn, %{"id" => "msg-2"}) end)
-
+    test "generates a script and returns {:ok, text}" do
       unique_prompt = "unique task #{System.unique_integer([:positive])}"
       result = DynamicAgent.handle(unique_prompt, %{llm_opts: llm_stub_opts()})
-
-      assert {:ok, :done} = result
+      assert {:ok, "generated output"} = result
     end
 
     test "registers the generated script in ToolRegistry" do
-      dispatcher_stub(fn conn -> Req.Test.json(conn, %{"id" => "msg-3"}) end)
-
       unique_prompt = "register test #{System.unique_integer([:positive])}"
       tool_name = DynamicAgent.derive_tool_name(unique_prompt)
       on_exit(fn -> ToolRegistry.unregister(tool_name) end)

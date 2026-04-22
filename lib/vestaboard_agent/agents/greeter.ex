@@ -8,7 +8,7 @@ defmodule VestaboardAgent.Agents.Greeter do
 
   @behaviour VestaboardAgent.Agent
 
-  alias VestaboardAgent.{Dispatcher, Tools.Greeting}
+  alias VestaboardAgent.Tools.Greeting
 
   @impl true
   def name, do: "greeter"
@@ -19,9 +19,6 @@ defmodule VestaboardAgent.Agents.Greeter do
   @impl true
   def handle(_prompt, context) do
     ctx = Map.put_new(context, :now, DateTime.utc_now())
-
-    with {:ok, _} <- Dispatcher.dispatch_tool(Greeting, ctx) do
-      {:ok, :done}
-    end
+    Greeting.run(ctx)
   end
 end

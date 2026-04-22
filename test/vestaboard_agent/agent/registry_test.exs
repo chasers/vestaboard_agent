@@ -61,74 +61,29 @@ defmodule VestaboardAgent.Agent.RegistryTest do
       Application.put_env(:vestaboard_agent, :llm, api_key: "test-key")
 
       llm_stub = fn conn ->
-        Req.Test.json(conn, %{
-          "content" => [%{"type" => "text", "text" => "greeter"}]
-        })
+        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "greeter"}]})
       end
-
-      # Greeter dispatches to the board — stub the HTTP layer too
-      Req.Test.stub(VestaboardAgent.DispatcherTest, fn conn ->
-        Req.Test.json(conn, %{"id" => "msg-llm"})
-      end)
-
-      Req.Test.allow(
-        VestaboardAgent.DispatcherTest,
-        self(),
-        Process.whereis(VestaboardAgent.Dispatcher)
-      )
-
-      Application.put_env(:vestaboard_agent, :client,
-        backend: VestaboardAgent.Client.Local,
-        api_key: "test-key",
-        base_url: "http://vestaboard.local:7000",
-        plug: {Req.Test, VestaboardAgent.DispatcherTest}
-      )
 
       result = Registry.handle("something that smells like a greeting", %{
         llm_opts: [plug: llm_stub]
       })
 
-      assert {:ok, :done} = result
+      assert {:ok, text} = result
+      assert is_binary(text)
     end
 
     test "falls back to DynamicAgent when LLM returns an unknown name" do
       Application.put_env(:vestaboard_agent, :llm, api_key: "test-key")
 
-      # DynamicAgent will call LLM again to generate a script — stub both calls
-      script_stub = fn conn ->
-        Req.Test.json(conn, %{
-          "content" => [%{"type" => "text", "text" => "return 'hello'"}]
-        })
-      end
-
-      Req.Test.stub(VestaboardAgent.DispatcherTest, fn conn ->
-        Req.Test.json(conn, %{"id" => "msg-dyn"})
-      end)
-
-      Req.Test.allow(
-        VestaboardAgent.DispatcherTest,
-        self(),
-        Process.whereis(VestaboardAgent.Dispatcher)
-      )
-
-      Application.put_env(:vestaboard_agent, :client,
-        backend: VestaboardAgent.Client.Local,
-        api_key: "test-key",
-        base_url: "http://vestaboard.local:7000",
-        plug: {Req.Test, VestaboardAgent.DispatcherTest}
-      )
-
       unique_prompt = "completely unknown request #{System.unique_integer([:positive])}"
 
-      result =
-        Registry.handle(unique_prompt, %{
-          llm_opts: [plug: fn conn ->
-            # First call is routing (returns "dynamic"), second is script generation
-            script_stub.(conn)
-          end]
-        })
+      # Both routing and script generation calls hit this stub
+      script_stub = fn conn ->
+        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "return 'hello'"}]})
+      end
 
-      # DynamicAgent either succeeds or errors — either way it tried
+      result = Registry.handle(unique_prompt, %{llm_opts: [plug: script_stub]})
+
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
   end
