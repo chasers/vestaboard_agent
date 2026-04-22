@@ -121,33 +121,46 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
   end
 
   defp pick_direction(game, safe, llm_opts) do
-    best = best_safe_move(game, safe)
+    {head, food} = {hd(game.snake), game.food}
+    {fr, fc} = food
 
-    case LLM.snake_move(Game.to_ascii(game), llm_opts) do
-      {:ok, dir} ->
-        if dir in safe do
-          dir
-        else
-          Logger.info("[snake] LLM chose unsafe #{dir}, overriding with #{best} (food-closest)")
-          best
-        end
+    current_dist = manhattan(head, food)
 
-      {:error, reason} ->
-        Logger.warning("[snake] LLM error #{inspect(reason)}, using #{best} (food-closest)")
-        best
+    closer = Enum.filter(safe, fn dir ->
+      {nr, nc} = Game.step_public(head, dir)
+      abs(fr - nr) + abs(fc - nc) < current_dist
+    end)
+
+    if closer != [] do
+      # At least one safe move reduces distance — pick the closest, skip LLM.
+      best = Enum.min_by(closer, fn dir ->
+        {nr, nc} = Game.step_public(head, dir)
+        abs(fr - nr) + abs(fc - nc)
+      end)
+      Logger.info("[snake] greedy move=#{best} (#{length(closer)} closer option(s))")
+      best
+    else
+      # All safe moves increase distance — use LLM to navigate around obstacle.
+      Logger.info("[snake] no closer moves, asking LLM")
+      fallback = Enum.min_by(safe, fn dir ->
+        {nr, nc} = Game.step_public(head, dir)
+        abs(fr - nr) + abs(fc - nc)
+      end)
+
+      case LLM.snake_move(Game.to_ascii(game), llm_opts) do
+        {:ok, dir} when is_atom(dir) ->
+          if dir in safe, do: dir, else: (Logger.info("[snake] LLM chose unsafe #{dir}, using fallback #{fallback}"); fallback)
+        {:ok, dir} ->
+          Logger.info("[snake] LLM chose unsafe #{dir}, using fallback #{fallback}")
+          fallback
+        {:error, reason} ->
+          Logger.warning("[snake] LLM error #{inspect(reason)}, using fallback #{fallback}")
+          fallback
+      end
     end
   end
 
-  # Returns the safe move that minimises Manhattan distance to food.
-  defp best_safe_move(%{snake: [head | _], food: food}, safe) do
-    {fr, fc} = food
-
-    safe
-    |> Enum.min_by(fn dir ->
-      {nr, nc} = Game.step_public(head, dir)
-      abs(fr - nr) + abs(fc - nc)
-    end)
-  end
+  defp manhattan({r1, c1}, {r2, c2}), do: abs(r1 - r2) + abs(c1 - c2)
 
   defp game_over(game, dispatch_fn) do
     dispatch_fn.(Game.game_over_grid(game))
