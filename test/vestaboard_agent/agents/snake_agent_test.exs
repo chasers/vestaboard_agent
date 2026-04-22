@@ -1,5 +1,5 @@
 defmodule VestaboardAgent.Agents.SnakeAgentTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias VestaboardAgent.Agents.SnakeAgent
 
@@ -28,7 +28,8 @@ defmodule VestaboardAgent.Agents.SnakeAgentTest do
       assert {:ok, :done} = SnakeAgent.handle("play snake", %{
         llm_opts: [plug: plug],
         dispatch_fn: fn _grid -> :ok end,
-        max_moves: 3
+        max_moves: 3,
+        frame_ms: 0
       })
     end
 
@@ -42,7 +43,8 @@ defmodule VestaboardAgent.Agents.SnakeAgentTest do
       assert {:ok, :done} = SnakeAgent.handle("play snake", %{
         llm_opts: [plug: plug],
         dispatch_fn: fn _grid -> :ok end,
-        max_moves: 5
+        max_moves: 5,
+        frame_ms: 0
       })
     end
 

@@ -1,5 +1,5 @@
 defmodule VestaboardAgent.Agents.ConversationalAgentTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias VestaboardAgent.Agents.ConversationalAgent
 
