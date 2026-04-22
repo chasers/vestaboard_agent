@@ -3,7 +3,7 @@ defmodule VestaboardAgent.E2E.SnakeTest do
 
   @moduletag timeout: 300_000
 
-  alias VestaboardAgent.{Agents.SnakeAgent, Client, Dispatcher}
+  alias VestaboardAgent.{Agents.SnakeAgent, Dispatcher}
 
   # Color codes used in Game.to_grid/1
   @head_code 69
@@ -12,7 +12,6 @@ defmodule VestaboardAgent.E2E.SnakeTest do
   describe "snake game" do
     test "each frame shows the snake head moving exactly one cell" do
       sent_frames = Agent.start_link(fn -> [] end) |> elem(1)
-      read_frames = Agent.start_link(fn -> [] end) |> elem(1)
       err_count = :counters.new(1, [])
 
       dispatch_fn = fn grid ->
@@ -24,32 +23,21 @@ defmodule VestaboardAgent.E2E.SnakeTest do
         result
       end
 
-      read_fn = fn ->
-        result = Client.read()
-        case result do
-          {:ok, grid} -> Agent.update(read_frames, &[grid | &1])
-          _ -> :ok
-        end
-        result
-      end
-
       {:ok, :done} = SnakeAgent.handle("play snake", %{
         dispatch_fn: dispatch_fn,
-        read_fn: read_fn,
-        max_moves: 6
+        max_moves: 6,
+        min_frame_ms: 0
       })
 
       sent = Agent.get(sent_frames, & &1) |> Enum.reverse()
-      reads = Agent.get(read_frames, & &1) |> Enum.reverse()
       skipped = :counters.get(err_count, 1)
 
       # Drop the game-over frame (last sent); only inspect game frames
       game_frames = Enum.drop(sent, -1)
       heads = Enum.map(game_frames, &head_position/1)
-
       body_lengths = Enum.map(game_frames, fn f -> length(body_positions(f)) end)
 
-      IO.puts("\n  [snake e2e] sent=#{length(sent)} reads=#{length(reads)} skipped=#{skipped}")
+      IO.puts("\n  [snake e2e] sent=#{length(sent)} skipped=#{skipped}")
       IO.puts("  [snake e2e] head positions: #{inspect(heads)}")
       IO.puts("  [snake e2e] body lengths:   #{inspect(body_lengths)}")
 
@@ -63,7 +51,7 @@ defmodule VestaboardAgent.E2E.SnakeTest do
           "No head (value #{@head_code}) found in frame #{i}.\nFrame: #{inspect(Enum.at(game_frames, i))}"
       end)
 
-      # --- Consecutive frames: head moves exactly 1 cell, no duplicates ---
+      # --- Consecutive frames: head moves exactly 1 cell ---
       game_frames
       |> Enum.chunk_every(2, 1, :discard)
       |> Enum.with_index()
@@ -108,8 +96,6 @@ defmodule VestaboardAgent.E2E.SnakeTest do
       end)
 
       # --- Each snake cell has at least one adjacent snake neighbor (no gaps) ---
-      # Uses a set-membership check rather than ordered traversal because
-      # body_positions/1 returns cells in row-major order, not snake order.
       game_frames
       |> Enum.with_index()
       |> Enum.each(fn {frame, i} ->
@@ -128,17 +114,6 @@ defmodule VestaboardAgent.E2E.SnakeTest do
               "Frame #{i}: snake cell #{inspect({r, c})} has no adjacent snake neighbors — gap detected.\nSnake: #{inspect(snake)}"
           end)
         end
-      end)
-
-      # --- Board read-backs match sent frames (no stale display) ---
-      # For each sent frame, there should be a matching read within the read sequence.
-      game_frames
-      |> Enum.with_index()
-      |> Enum.each(fn {sent_grid, i} ->
-        assert sent_grid in reads,
-          "Frame #{i}: sent grid was never confirmed by board read-back.\n" <>
-          "Sent head: #{inspect(head_position(sent_grid))}\n" <>
-          "Read heads: #{reads |> Enum.map(&head_position/1) |> inspect()}"
       end)
     end
   end

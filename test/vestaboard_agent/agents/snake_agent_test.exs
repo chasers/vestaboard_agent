@@ -3,21 +3,8 @@ defmodule VestaboardAgent.Agents.SnakeAgentTest do
 
   alias VestaboardAgent.Agents.SnakeAgent
 
-  # Returns {dispatch_fn, read_fn} where read_fn always returns the last
-  # dispatched grid so await_frame_applied resolves immediately in tests.
-  defp stub_board do
-    {:ok, last} = Agent.start_link(fn -> nil end)
-
-    dispatch_fn = fn grid ->
-      Agent.update(last, fn _ -> grid end)
-      :ok
-    end
-
-    read_fn = fn ->
-      {:ok, Agent.get(last, fn g -> g || [] end)}
-    end
-
-    {dispatch_fn, read_fn}
+  defp stub_dispatch do
+    fn _grid -> :ok end
   end
 
   describe "name/0 and keywords/0" do
@@ -38,32 +25,26 @@ defmodule VestaboardAgent.Agents.SnakeAgentTest do
     end
 
     test "returns {:ok, :done} when max_moves is reached" do
-      {dispatch_fn, read_fn} = stub_board()
-
       plug = fn conn ->
         Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "RIGHT"}]})
       end
 
       assert {:ok, :done} = SnakeAgent.handle("play snake", %{
         llm_opts: [plug: plug],
-        dispatch_fn: dispatch_fn,
-        read_fn: read_fn,
+        dispatch_fn: stub_dispatch(),
         max_moves: 3,
         min_frame_ms: 0
       })
     end
 
     test "returns {:ok, :done} after LLM drives snake into a wall" do
-      {dispatch_fn, read_fn} = stub_board()
-
       plug = fn conn ->
         Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "UP"}]})
       end
 
       assert {:ok, :done} = SnakeAgent.handle("play snake", %{
         llm_opts: [plug: plug],
-        dispatch_fn: dispatch_fn,
-        read_fn: read_fn,
+        dispatch_fn: stub_dispatch(),
         max_moves: 5,
         min_frame_ms: 0
       })
@@ -71,16 +52,10 @@ defmodule VestaboardAgent.Agents.SnakeAgentTest do
 
     test "dispatches a grid on each move and a final game-over grid" do
       grids = :ets.new(:grids, [:bag, :public])
-      {:ok, last} = Agent.start_link(fn -> nil end)
 
       dispatch_fn = fn grid ->
-        Agent.update(last, fn _ -> grid end)
         :ets.insert(grids, {:grid, grid})
         :ok
-      end
-
-      read_fn = fn ->
-        {:ok, Agent.get(last, fn g -> g || [] end)}
       end
 
       plug = fn conn ->
@@ -90,7 +65,6 @@ defmodule VestaboardAgent.Agents.SnakeAgentTest do
       SnakeAgent.handle("play snake", %{
         llm_opts: [plug: plug],
         dispatch_fn: dispatch_fn,
-        read_fn: read_fn,
         max_moves: 3,
         min_frame_ms: 0
       })
