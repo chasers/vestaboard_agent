@@ -118,19 +118,32 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
   end
 
   defp pick_direction(game, safe, llm_opts) do
+    best = best_safe_move(game, safe)
+
     case LLM.snake_move(Game.to_ascii(game), llm_opts) do
       {:ok, dir} ->
         if dir in safe do
           dir
         else
-          Logger.info("[snake] LLM chose unsafe #{dir}, overriding with #{hd(safe)}")
-          hd(safe)
+          Logger.info("[snake] LLM chose unsafe #{dir}, overriding with #{best} (food-closest)")
+          best
         end
 
       {:error, reason} ->
-        Logger.warning("[snake] LLM error #{inspect(reason)}, using #{hd(safe)}")
-        hd(safe)
+        Logger.warning("[snake] LLM error #{inspect(reason)}, using #{best} (food-closest)")
+        best
     end
+  end
+
+  # Returns the safe move that minimises Manhattan distance to food.
+  defp best_safe_move(%{snake: [head | _], food: food}, safe) do
+    {fr, fc} = food
+
+    safe
+    |> Enum.min_by(fn dir ->
+      {nr, nc} = Game.step_public(head, dir)
+      abs(fr - nr) + abs(fc - nc)
+    end)
   end
 
   defp game_over(game, dispatch_fn) do

@@ -136,6 +136,9 @@ defmodule VestaboardAgent.Snake.Game do
 
   # --- Private ---
 
+  @doc false
+  def step_public(pos, dir), do: step(pos, dir)
+
   defp step({r, c}, :up),    do: {r - 1, c}
   defp step({r, c}, :down),  do: {r + 1, c}
   defp step({r, c}, :left),  do: {r, c - 1}

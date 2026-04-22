@@ -310,6 +310,11 @@ defmodule VestaboardAgent.LLM do
     no exit). In that case, pick the next-closest option that keeps an
     escape route open.
 
+    Important: only choose from the listed move options. Do not choose a
+    direction that would hit a wall or the snake's own body. If you find
+    yourself repeatedly visiting the same positions without reaching food,
+    prioritise moves that open up new unexplored areas of the board.
+
     Reply with exactly one word: the direction name (UP, DOWN, LEFT, or RIGHT).
     """
   end

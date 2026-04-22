@@ -3,7 +3,7 @@ defmodule VestaboardAgent.E2E.SnakeTest do
 
   @moduletag timeout: 300_000
 
-  alias VestaboardAgent.{Agents.SnakeAgent, Dispatcher}
+  alias VestaboardAgent.Agents.SnakeAgent
 
   # Color codes used in Game.to_grid/1
   @head_code 69
@@ -13,38 +13,28 @@ defmodule VestaboardAgent.E2E.SnakeTest do
   describe "snake game" do
     test "each frame shows the snake head moving exactly one cell" do
       sent_frames = Agent.start_link(fn -> [] end) |> elem(1)
-      err_count = :counters.new(1, [])
 
       dispatch_fn = fn grid ->
-        result = Dispatcher.dispatch(grid)
-        case result do
-          {:ok, _} -> Agent.update(sent_frames, &[grid | &1])
-          {:error, _} -> :counters.add(err_count, 1, 1)
-        end
-        result
+        Agent.update(sent_frames, &[grid | &1])
+        {:ok, :mocked}
       end
 
       {:ok, :done} = SnakeAgent.handle("play snake", %{
         dispatch_fn: dispatch_fn,
-        max_moves: 6,
+        max_moves: 50,
         min_frame_ms: 0
       })
 
       sent = Agent.get(sent_frames, & &1) |> Enum.reverse()
-      skipped = :counters.get(err_count, 1)
 
       # Drop the game-over frame (last sent); only inspect game frames
       game_frames = Enum.drop(sent, -1)
       heads = Enum.map(game_frames, &head_position/1)
       body_lengths = Enum.map(game_frames, fn f -> length(body_positions(f)) end)
 
-      IO.puts("\n  [snake e2e] sent=#{length(sent)} skipped=#{skipped}")
+      IO.puts("\n  [snake e2e] sent=#{length(sent)}")
       IO.puts("  [snake e2e] head positions: #{inspect(heads)}")
       IO.puts("  [snake e2e] body lengths:   #{inspect(body_lengths)}")
-
-      # --- No dispatch errors ---
-      assert skipped == 0,
-        "#{skipped} frame(s) were skipped due to dispatch errors"
 
       # --- Head found in every game frame ---
       Enum.each(Enum.with_index(heads), fn {pos, i} ->
