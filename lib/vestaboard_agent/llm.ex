@@ -48,6 +48,21 @@ defmodule VestaboardAgent.LLM do
   end
 
   @doc """
+  Ask the LLM to rewrite a failing Lua tool script.
+
+  `prev_script` is the script that was tried; `prev_output` is what it
+  returned (or an error tuple). The LLM uses this feedback to try a
+  different approach (e.g. a different API endpoint).
+  """
+  @spec regenerate_tool_script(String.t(), String.t(), term(), keyword()) ::
+          {:ok, String.t()} | {:error, term()}
+  def regenerate_tool_script(task_description, prev_script, prev_output, opts \\ []) do
+    with {:ok, script} <- complete(retry_script_prompt(task_description, prev_script, prev_output), opts) do
+      {:ok, strip_fences(script)}
+    end
+  end
+
+  @doc """
   Parse a natural-language scheduling request into a tool name and interval.
 
   `tool_names` is a list of available tool name strings. Returns
@@ -233,6 +248,38 @@ defmodule VestaboardAgent.LLM do
         Logs a debug message (no effect on display).
 
     Task: #{task_description}
+
+    Return ONLY the Lua script. No explanation, no markdown fences.
+    """
+  end
+
+  defp retry_script_prompt(task_description, prev_script, prev_output) do
+    output_summary =
+      case prev_output do
+        {:ok, ""} -> "returned an empty string"
+        {:ok, text} -> "returned: #{String.slice(text, 0, 200)}"
+        {:error, reason} -> "raised an error: #{inspect(reason)}"
+      end
+
+    """
+    A Lua script for a Vestaboard LED display failed to produce useful output.
+    Rewrite it using a different approach (e.g. a different API endpoint or data source).
+
+    Original task: #{task_description}
+
+    Previous script:
+    #{prev_script}
+
+    What it #{output_summary}
+
+    Board constraints:
+    - 6 rows × 22 columns
+    - Each line must be 22 characters or fewer
+    - Return a single string; newlines split into rows
+    - No require(), no file I/O, no os.*
+
+    Available built-ins: vestaboard.http_get(url), vestaboard.http_post(url, body),
+    vestaboard.json_decode(str), vestaboard.truncate(str, len), vestaboard.log(msg)
 
     Return ONLY the Lua script. No explanation, no markdown fences.
     """

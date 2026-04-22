@@ -85,4 +85,37 @@ defmodule VestaboardAgent.Agents.DynamicAgentTest do
       assert {:error, _} = DynamicAgent.handle(unique_prompt, %{llm_opts: failing_opts})
     end
   end
+
+  describe "retry loop" do
+    test "retries when first script returns empty and second succeeds" do
+      counter = :counters.new(1, [])
+
+      plug = fn conn ->
+        n = :counters.get(counter, 1)
+        :counters.add(counter, 1, 1)
+
+        script = if n == 0, do: "return ''", else: "return 'retry succeeded'"
+        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => script}]})
+      end
+
+      unique_prompt = "retry test #{System.unique_integer([:positive])}"
+      tool_name = DynamicAgent.derive_tool_name(unique_prompt)
+      on_exit(fn -> ToolRegistry.unregister(tool_name) end)
+
+      assert {:ok, "retry succeeded"} = DynamicAgent.handle(unique_prompt, %{llm_opts: [plug: plug]})
+      assert :counters.get(counter, 1) == 2
+    end
+
+    test "returns last result after all attempts exhausted" do
+      plug = fn conn ->
+        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "return ''"}]})
+      end
+
+      unique_prompt = "exhaust test #{System.unique_integer([:positive])}"
+      tool_name = DynamicAgent.derive_tool_name(unique_prompt)
+      on_exit(fn -> ToolRegistry.unregister(tool_name) end)
+
+      assert {:ok, ""} = DynamicAgent.handle(unique_prompt, %{llm_opts: [plug: plug]})
+    end
+  end
 end
