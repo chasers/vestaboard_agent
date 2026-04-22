@@ -104,7 +104,10 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
       direction = pick_direction(game, safe, llm_opts)
       elapsed = System.monotonic_time(:millisecond) - t0
 
-      Logger.info("[snake] move=#{direction} safe=#{inspect(safe)} score=#{game.score} head=#{inspect(hd(game.snake))} llm=#{elapsed}ms")
+      {hr, hc} = hd(game.snake)
+      {fr, fc} = game.food
+      dist = abs(fr - hr) + abs(fc - hc)
+      Logger.info("[snake] move=#{direction} safe=#{inspect(safe)} score=#{game.score} head={#{hr},#{hc}} food={#{fr},#{fc}} dist=#{dist} llm=#{elapsed}ms")
 
       next_left = if moves_left == :infinity, do: :infinity, else: moves_left - 1
 
