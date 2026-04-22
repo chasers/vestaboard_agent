@@ -47,8 +47,11 @@ defmodule VestaboardAgent.E2E.SnakeTest do
       game_frames = Enum.drop(sent, -1)
       heads = Enum.map(game_frames, &head_position/1)
 
+      body_lengths = Enum.map(game_frames, fn f -> length(body_positions(f)) end)
+
       IO.puts("\n  [snake e2e] sent=#{length(sent)} reads=#{length(reads)} skipped=#{skipped}")
       IO.puts("  [snake e2e] head positions: #{inspect(heads)}")
+      IO.puts("  [snake e2e] body lengths:   #{inspect(body_lengths)}")
 
       # --- No dispatch errors ---
       assert skipped == 0,
@@ -86,6 +89,45 @@ defmodule VestaboardAgent.E2E.SnakeTest do
 
         assert prev_head in next_body,
           "Frame #{i}→#{i + 1}: previous head #{inspect(prev_head)} not found in next body #{inspect(next_body)}"
+      end)
+
+      # --- Body length never shrinks between frames (same size or +1 when food eaten) ---
+      game_frames
+      |> Enum.chunk_every(2, 1, :discard)
+      |> Enum.with_index()
+      |> Enum.each(fn {[frame_a, frame_b], i} ->
+        len_a = length(body_positions(frame_a))
+        len_b = length(body_positions(frame_b))
+        delta = len_b - len_a
+
+        assert delta >= 0,
+          "Frame #{i}→#{i + 1}: body shrunk from #{len_a} to #{len_b} cells"
+
+        assert delta <= 1,
+          "Frame #{i}→#{i + 1}: body grew by #{delta} cells (expected 0 or 1)"
+      end)
+
+      # --- Each snake cell has at least one adjacent snake neighbor (no gaps) ---
+      # Uses a set-membership check rather than ordered traversal because
+      # body_positions/1 returns cells in row-major order, not snake order.
+      game_frames
+      |> Enum.with_index()
+      |> Enum.each(fn {frame, i} ->
+        head = head_position(frame)
+        body = body_positions(frame)
+        snake = [head | body]
+
+        if length(snake) > 1 do
+          snake_set = MapSet.new(snake)
+
+          Enum.each(snake, fn {r, c} ->
+            neighbors = [{r - 1, c}, {r + 1, c}, {r, c - 1}, {r, c + 1}]
+            adjacent = Enum.count(neighbors, &MapSet.member?(snake_set, &1))
+
+            assert adjacent >= 1,
+              "Frame #{i}: snake cell #{inspect({r, c})} has no adjacent snake neighbors — gap detected.\nSnake: #{inspect(snake)}"
+          end)
+        end
       end)
 
       # --- Board read-backs match sent frames (no stale display) ---
