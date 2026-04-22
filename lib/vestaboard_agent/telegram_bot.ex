@@ -97,7 +97,7 @@ defmodule VestaboardAgent.TelegramBot do
       case VestaboardAgent.Dispatcher.last_board() do
         nil -> "Board has no state yet."
         %{text: ""} -> "Board is blank."
-        %{text: text} -> "Current board:\n```\n#{text}\n```"
+        %{text: text} -> "Current board:\n<pre>#{html_escape(text)}</pre>"
       end
 
     send_message(state.token, chat_id, reply)
@@ -133,7 +133,7 @@ defmodule VestaboardAgent.TelegramBot do
         name -> "\nBorder: #{name}"
       end
 
-    "Displayed in #{elapsed}ms#{border_line}\n```\n#{board_text}\n```"
+    "Displayed in #{elapsed}ms#{border_line}\n<pre>#{html_escape(board_text)}</pre>"
   end
 
   defp format_reply({:error, :no_match}, _elapsed) do
@@ -141,7 +141,7 @@ defmodule VestaboardAgent.TelegramBot do
   end
 
   defp format_reply({:error, reason}, _elapsed) do
-    "Error: #{inspect(reason)}"
+    "Error: #{html_escape(inspect(reason))}"
   end
 
   defp border_color_name(nil), do: nil
@@ -161,7 +161,7 @@ defmodule VestaboardAgent.TelegramBot do
   defp send_message(token, chat_id, text) do
     url = "#{@base_url}/bot#{token}/sendMessage"
 
-    case Req.post(url, json: %{chat_id: chat_id, text: text, parse_mode: "Markdown"}) do
+    case Req.post(url, json: %{chat_id: chat_id, text: text, parse_mode: "HTML"}) do
       {:ok, %{status: 200}} ->
         :ok
 
@@ -185,4 +185,11 @@ defmodule VestaboardAgent.TelegramBot do
 
   defp allowed?(_chat_id, :all), do: true
   defp allowed?(chat_id, allowed), do: MapSet.member?(allowed, to_string(chat_id))
+
+  defp html_escape(text) do
+    text
+    |> String.replace("&", "&amp;")
+    |> String.replace("<", "&lt;")
+    |> String.replace(">", "&gt;")
+  end
 end

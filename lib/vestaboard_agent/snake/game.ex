@@ -52,9 +52,20 @@ defmodule VestaboardAgent.Snake.Game do
     end
   end
 
+  @doc "Return the list of directions that won't immediately kill the snake."
+  @spec safe_moves(t()) :: [direction()]
+  def safe_moves(%{snake: [head | _] = snake, direction: current}) do
+    [:up, :down, :left, :right]
+    |> Enum.reject(&(&1 == opposite(current)))
+    |> Enum.filter(fn dir ->
+      next = step(head, dir)
+      not out_of_bounds?(next) and next not in snake
+    end)
+  end
+
   @doc "Render the game state as an ASCII map for the LLM (H=head, B=body, F=food, .=empty)."
   @spec to_ascii(t()) :: String.t()
-  def to_ascii(%{snake: [head | body], food: food, direction: dir, score: score}) do
+  def to_ascii(%{snake: [head | body], food: food, direction: dir, score: score} = game) do
     grid =
       for r <- 0..(@rows - 1) do
         for c <- 0..(@cols - 1) do
@@ -69,8 +80,9 @@ defmodule VestaboardAgent.Snake.Game do
         |> Enum.join()
       end
 
+    safe = safe_moves(game) |> Enum.map(&(&1 |> Atom.to_string() |> String.upcase())) |> Enum.join(", ")
     board = Enum.join(grid, "\n")
-    "Current direction: #{dir |> Atom.to_string() |> String.upcase()}\nScore: #{score}\n#{board}"
+    "Current direction: #{dir |> Atom.to_string() |> String.upcase()}\nScore: #{score}\nSafe moves: #{safe}\n#{board}"
   end
 
   @doc "Render the game state as a 6×22 color-code grid for direct Vestaboard dispatch."

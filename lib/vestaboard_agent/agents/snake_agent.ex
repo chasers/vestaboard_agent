@@ -9,6 +9,8 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
   Each LLM call (~1s) naturally paces the game to one move per second.
   """
 
+  require Logger
+
   @behaviour VestaboardAgent.Agent
 
   alias VestaboardAgent.{Dispatcher, LLM, Snake.Game}
@@ -23,31 +25,57 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
   def handle(_prompt, context) do
     llm_opts = Map.get(context, :llm_opts, [])
     dispatch_fn = Map.get(context, :dispatch_fn, &Dispatcher.dispatch/1)
+    max_moves = Map.get(context, :max_moves, :infinity)
     game = Game.new()
-    play(game, llm_opts, dispatch_fn)
+    play(game, llm_opts, dispatch_fn, max_moves)
     {:ok, :done}
   end
 
   # --- Game loop ---
 
-  defp play(game, llm_opts, dispatch_fn) do
+  defp play(game, _llm_opts, dispatch_fn, 0) do
+    Logger.info("[snake] max_moves reached — ending game (score #{game.score})")
+    game_over(game, dispatch_fn)
+  end
+
+  defp play(game, llm_opts, dispatch_fn, moves_left) do
     dispatch_fn.(Game.to_grid(game))
 
+    safe = Game.safe_moves(game)
+
+    if safe == [] do
+      Logger.info("[snake] no safe moves — game over (score #{game.score})")
+      game_over(game, dispatch_fn)
+    else
+      direction = pick_direction(game, safe, llm_opts)
+      Logger.info("[snake] move=#{direction} safe=#{inspect(safe)} score=#{game.score} head=#{inspect(hd(game.snake))}")
+
+      next_left = if moves_left == :infinity, do: :infinity, else: moves_left - 1
+
+      case Game.move(game, direction) do
+        {:ok, new_game} -> play(new_game, llm_opts, dispatch_fn, next_left)
+        {:error, :dead} ->
+          Logger.info("[snake] died on #{direction} — game over (score #{game.score})")
+          game_over(game, dispatch_fn)
+      end
+    end
+  end
+
+  defp pick_direction(game, safe, llm_opts) do
     ascii = Game.to_ascii(game)
 
     case LLM.snake_move(ascii, llm_opts) do
-      {:ok, direction} ->
-        case Game.move(game, direction) do
-          {:ok, new_game} -> play(new_game, llm_opts, dispatch_fn)
-          {:error, :dead} -> game_over(game, dispatch_fn)
+      {:ok, dir} ->
+        if dir in safe do
+          dir
+        else
+          Logger.info("[snake] LLM chose unsafe #{dir}, overriding with #{hd(safe)}")
+          hd(safe)
         end
 
-      {:error, _reason} ->
-        # LLM failed — keep current direction
-        case Game.move(game, game.direction) do
-          {:ok, new_game} -> play(new_game, llm_opts, dispatch_fn)
-          {:error, :dead} -> game_over(game, dispatch_fn)
-        end
+      {:error, reason} ->
+        Logger.warning("[snake] LLM error #{inspect(reason)}, using #{hd(safe)}")
+        hd(safe)
     end
   end
 

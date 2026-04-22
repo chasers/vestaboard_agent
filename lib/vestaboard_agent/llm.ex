@@ -298,19 +298,18 @@ defmodule VestaboardAgent.LLM do
   defp snake_prompt(ascii_board) do
     """
     You are playing Snake on a 6-row × 22-column grid.
-    Row 0 is the top. Column 0 is the left.
+    Row 0 is the top row. Row 5 is the bottom row.
+    Column 0 is the leftmost column. Column 21 is the rightmost.
 
     #{ascii_board}
 
     Legend: H=head, B=body, F=food, .=empty
 
-    Rules:
-    - You cannot reverse direction (e.g. if moving RIGHT you cannot choose LEFT)
-    - Moving into a wall or your own body kills the snake instantly
-    - Eat the food (F) to grow and score points
+    Only choose from the moves listed under "Safe moves" above — those are the only
+    ones that won't immediately kill the snake. Pick the one that best moves the
+    head (H) toward the food (F) while avoiding getting cornered.
 
-    Choose the safest move that makes progress toward the food.
-    Reply with exactly one word: UP, DOWN, LEFT, or RIGHT.
+    Reply with exactly one word from the safe moves list.
     """
   end
 

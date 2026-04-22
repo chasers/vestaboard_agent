@@ -20,35 +20,47 @@ defmodule VestaboardAgent.Agents.SnakeAgentTest do
       :ok
     end
 
-    test "returns {:ok, :done} when snake immediately hits a wall" do
+    test "returns {:ok, :done} when max_moves is reached" do
       plug = fn conn ->
-        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "LEFT"}]})
+        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "RIGHT"}]})
       end
 
       assert {:ok, :done} = SnakeAgent.handle("play snake", %{
         llm_opts: [plug: plug],
-        dispatch_fn: fn _grid -> :ok end
+        dispatch_fn: fn _grid -> :ok end,
+        max_moves: 3
       })
     end
 
-    test "returns {:ok, :done} after a few moves then death" do
-      counter = :counters.new(1, [])
-
+    test "returns {:ok, :done} after LLM drives snake into a wall" do
+      # Always go UP — after hitting the top wall, safe_moves covers it,
+      # but max_moves ends the game before any timeout.
       plug = fn conn ->
-        n = :counters.get(counter, 1)
-        :counters.add(counter, 1, 1)
-        dir = case n do
-          0 -> "RIGHT"
-          1 -> "RIGHT"
-          _ -> "UP"
-        end
-        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => dir}]})
+        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "UP"}]})
       end
 
       assert {:ok, :done} = SnakeAgent.handle("play snake", %{
         llm_opts: [plug: plug],
-        dispatch_fn: fn _grid -> :ok end
+        dispatch_fn: fn _grid -> :ok end,
+        max_moves: 5
       })
+    end
+
+    test "dispatches a grid on each move and a final game-over grid" do
+      grids = :ets.new(:grids, [:bag, :public])
+
+      plug = fn conn ->
+        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "RIGHT"}]})
+      end
+
+      SnakeAgent.handle("play snake", %{
+        llm_opts: [plug: plug],
+        dispatch_fn: fn grid -> :ets.insert(grids, {:grid, grid}); :ok end,
+        max_moves: 3
+      })
+
+      # 3 move frames + 1 game-over frame = 4 dispatches
+      assert :ets.info(grids, :size) == 4
     end
   end
 end
