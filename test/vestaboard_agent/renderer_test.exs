@@ -48,8 +48,8 @@ defmodule VestaboardAgent.RendererTest do
       assert grid_lower == grid_upper
     end
 
-    test "encodes digits 0-9 as 27-36" do
-      {:ok, grid} = Renderer.render("0123456789", align: :left)
+    test "encodes digits 1-9 as 27-35, 0 as 36" do
+      {:ok, grid} = Renderer.render("1234567890", align: :left)
       assert Enum.take(content_row(grid), 10) == Enum.to_list(27..36)
     end
 
@@ -143,10 +143,15 @@ defmodule VestaboardAgent.RendererTest do
     test "encodes known characters" do
       assert Renderer.encode_char("A") == 1
       assert Renderer.encode_char("Z") == 26
-      assert Renderer.encode_char("0") == 27
-      assert Renderer.encode_char("9") == 36
+      assert Renderer.encode_char("1") == 27
+      assert Renderer.encode_char("9") == 35
+      assert Renderer.encode_char("0") == 36
       assert Renderer.encode_char("!") == 37
       assert Renderer.encode_char(" ") == 0
+      assert Renderer.encode_char("\"") == 53
+      assert Renderer.encode_char(":") == 54
+      assert Renderer.encode_char(".") == 56
+      assert Renderer.encode_char("/") == 59
     end
 
     test "returns 0 for unknown characters" do
