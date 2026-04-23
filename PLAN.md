@@ -210,8 +210,9 @@ Review the codebase for architectural correctness and Elixir best practices. Cle
 | | Item | Notes |
 |---|---|---|
 | ⬜ | **12a** Architecture review | Check supervision tree, GenServer usage, ETS ownership, process boundaries; document findings |
-| ⬜ | **12b** Elixir best practices pass | Typespecs, `@doc`, pattern matching, avoid anti-patterns (e.g. `send` where `call` is correct, naked `spawn`) |
-| ⬜ | **12c** Cleanup | Remove dead code, fix warnings, enforce `mix format` + `mix credo` |
+| ⬜ | **12b** Wire `AgentSupervisor` into the display path | `Registry.handle/2` calls `agent.handle/2` directly in the Telegram polling process — agents are unsupervised and a crash takes down the bot. Replace with `AgentSupervisor.run/3` so each invocation is a supervised child; update the ETS display lock to track the `AgentServer` pid instead of the caller pid |
+| ⬜ | **12c** Elixir best practices pass | Typespecs, `@doc`, pattern matching, avoid anti-patterns (e.g. `send` where `call` is correct, naked `spawn`) |
+| ⬜ | **12d** Cleanup | Remove dead code, fix warnings, enforce `mix format` + `mix credo` |
 
 ---
 
