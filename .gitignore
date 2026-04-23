@@ -31,3 +31,5 @@ vestaboard_agent-*.tar
 
 # Runtime data
 /priv/
+
+/.elixir_ls/
