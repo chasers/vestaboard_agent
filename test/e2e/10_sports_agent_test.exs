@@ -72,6 +72,44 @@ defmodule VestaboardAgent.E2E.SportsAgentTest do
     end
   end
 
+  describe "SportsAgent — recent scores" do
+    test "'latest lakers score' shows a final score when Lakers have no game today" do
+      alias VestaboardAgent.Clients.ESPN
+
+      today_str = Date.utc_today() |> Date.to_string() |> String.replace("-", "")
+
+      lakers_today =
+        case ESPN.scoreboard("basketball", "nba", dates: today_str) do
+          {:ok, games} ->
+            Enum.any?(games, fn g ->
+              String.upcase(g.home.abbrev) == "LAL" or String.upcase(g.away.abbrev) == "LAL"
+            end)
+
+          _ ->
+            false
+        end
+
+      if lakers_today do
+        # Lakers play today — this path is already covered; skip the lookback test
+        :ok
+      else
+        result = e2e_display("what is the latest lakers score")
+
+        assert result.display_result == {:ok, :done},
+               "Expected {:ok, :done}, got: #{inspect(result.display_result)}"
+
+        assert result.last_board != nil
+        board_text = result.last_board.text
+
+        assert String.contains?(board_text, "LAL"),
+               "Expected 'LAL' in board text, got: #{inspect(board_text)}"
+
+        assert String.contains?(board_text, "FINAL"),
+               "Expected 'FINAL' in board text for a recent score, got: #{inspect(board_text)}"
+      end
+    end
+  end
+
   describe "SportsAgent — prompt routing" do
     test "'show nfl scores' routes to SportsAgent and updates the board" do
       result = e2e_display("show nfl scores")
