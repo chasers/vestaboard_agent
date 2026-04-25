@@ -8,9 +8,10 @@ defmodule VestaboardAgent.Tools.Sports do
   ## Game resolution order
 
   1. Today's scoreboard — if the team has a game today (any status), show it.
-  2. Upcoming games — if the team isn't in today's scoreboard, search the next
-     7 days and display the next scheduled game time.
-  3. Fallback message — if the team can't be found at all, display a
+  2. Recent finals — look back up to 3 days for the most recent final score.
+  3. Upcoming games — if nothing recent, search the next 7 days and display
+     the next scheduled game time.
+  4. Fallback message — if the team can't be found at all, display a
      board-friendly "no games found" message so the user always sees something.
 
   Context keys:
@@ -41,7 +42,10 @@ defmodule VestaboardAgent.Tools.Sports do
             {:ok, %{text: format(game, league), live: game.status == :in_progress}}
 
           {:error, _} when not is_nil(team) ->
-            find_upcoming(sport, league, team, league, opts)
+            case find_recent(sport, league, team, opts) do
+              {:ok, _} = result -> result
+              {:error, _} -> find_upcoming(sport, league, team, league, opts)
+            end
 
           {:error, :no_games} ->
             {:ok, %{text: "NO #{String.upcase(league)}\nGAMES TODAY", live: false}}
@@ -67,6 +71,30 @@ defmodule VestaboardAgent.Tools.Sports do
       nil -> {:error, {:team_not_found, team}}
       game -> {:ok, game}
     end
+  end
+
+  defp find_recent(sport, league, team, opts, lookback \\ 3) do
+    up = String.upcase(team)
+    today = Date.utc_today()
+
+    Enum.find_value(1..lookback, {:error, :not_found}, fn offset ->
+      date_str = today |> Date.add(-offset) |> Date.to_string() |> String.replace("-", "")
+
+      case ESPNClient.scoreboard(sport, league, Keyword.put(opts, :dates, date_str)) do
+        {:ok, games} ->
+          Enum.find_value(games, nil, fn g ->
+            team_match =
+              String.upcase(g.home.abbrev) == up or String.upcase(g.away.abbrev) == up
+
+            if team_match and g.status == :final do
+              {:ok, %{text: format(g, league), live: false}}
+            end
+          end)
+
+        {:error, _} ->
+          nil
+      end
+    end)
   end
 
   defp find_upcoming(sport, league, team, league_label, opts) do
