@@ -4,6 +4,22 @@ Status legend: ✅ done · 🔄 in progress · ⬜ not started
 
 ---
 
+## Detailed Plans
+
+Detailed implementation plans live in `.plans/`. File naming convention:
+
+```
+YYYY-MM-DD_NN_<slug>.md
+```
+
+`NN` is a zero-padded daily index (01, 02, …). This keeps files naturally sorted by date then creation order. Always use this prefix when adding a new plan file.
+
+| Plan | File |
+|---|---|
+| SportsAgent — live/final ESPN scores | [2026-04-25_01_sports_score_agent.md](.plans/2026-04-25_01_sports_score_agent.md) |
+
+---
+
 ## Phase 1 — Foundation ✅
 
 | | Item |
@@ -267,6 +283,20 @@ The current keyword + LLM routing is brittle. Improve confidence, observability,
 | ⬜ | **16b** Routing evaluation dataset | A fixed set of prompts with expected agent labels; `mix test.e2e` asserts routing accuracy |
 | ⬜ | **16c** Embedding-based routing | Pre-embed agent descriptions; route by cosine similarity as a faster/cheaper first pass |
 | ⬜ | **16d** Routing trace & explain | Log which agent was selected and why; surface this in `/status` |
+
+---
+
+## Phase 17 — SportsAgent
+
+Display live or final sports scores via ESPN's unofficial scoreboard API (no key required). See [detailed plan](.plans/2026-04-25_01_sports_score_agent.md).
+
+| | Item | Notes |
+|---|---|---|
+| ✅ | **17a** `ESPNClient` | Thin HTTP client; `scoreboard/2` returns typed `game()` structs; all ESPN I/O here |
+| ✅ | **17b** `Tools.Sports` | Delegates to `ESPNClient`; filters by team; formats board text; returns `{text, live: bool}` |
+| ✅ | **17c** `SportsAgent` | Keyword parsing; one-shot for final/scheduled games; `send_after` refresh loop for live games |
+| ✅ | **17d** Wire into registry | Add to `@default_agents` before `DynamicAgent` |
+| ✅ | **17e** Unit tests | All three modules; HTTP stubbed via `Req.Test` in `ESPNClient` layer only |
 
 ---
 
