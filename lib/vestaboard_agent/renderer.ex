@@ -2,28 +2,32 @@ defmodule VestaboardAgent.Renderer do
   @moduledoc """
   Converts text into a Vestaboard 6×22 character code grid.
 
-  Character codes confirmed from board output:
+  Character codes per https://docs.vestaboard.com/docs/charactercodes/
+
     0       = blank
     1–26    = A–Z
-    27–36   = 1–9,0  (27=1, 28=2, … 35=9, 36=0)
+    27–36   = 1–9, 0  (27=1, 28=2, … 35=9, 36=0)
     37      = !
     38      = @
     39      = #
     40      = $
+    41      = (
+    42      = )
     44      = -
-    46      = &
-    47      = =
-    52      = ?
+    46      = +
+    47      = &
+    48      = =
+    49      = ;
+    50      = :
+    52      = '
     53      = "
-    54      = :
+    54      = %
     55      = ,
     56      = .
     59      = /
-    60      = '
-    62      = +
-    63      = °
-    65      = ♥
-    68      = filled (■)
+    60      = ?
+    62      = °
+    63–71   = color tiles (Red, Orange, Yellow, Green, Blue, Violet, White, Black, Filled)
 
   Unknown characters are rendered as blank (0).
   """
@@ -39,7 +43,8 @@ defmodule VestaboardAgent.Renderer do
     "green" => 66,
     "blue" => 67,
     "violet" => 68,
-    "white" => 69
+    "white" => 69,
+    "black" => 70
   }
   @color_names Map.keys(@color_codes)
 
@@ -88,20 +93,23 @@ defmodule VestaboardAgent.Renderer do
     "@" => 38,
     "#" => 39,
     "$" => 40,
+    "(" => 41,
+    ")" => 42,
     "-" => 44,
-    "&" => 46,
-    "=" => 47,
-    "?" => 52,
+    "+" => 46,
+    "&" => 47,
+    "=" => 48,
+    ";" => 49,
+    ":" => 50,
+    "'" => 52,
     "\"" => 53,
-    ":" => 54,
+    "%" => 54,
     "," => 55,
     "." => 56,
     "/" => 59,
-    "'" => 60,
-    "+" => 62,
-    "°" => 63,
-    "♥" => 65,
-    "■" => 68
+    "?" => 60,
+    "°" => 62,
+    "■" => 71
   }
 
   @doc """
