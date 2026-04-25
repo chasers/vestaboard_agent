@@ -59,6 +59,52 @@ defmodule VestaboardAgent.E2E.ESPNExploreTest do
   end
 
   # ---------------------------------------------------------------------------
+  # Recent NBA scores (looks back up to 5 days for final games)
+  # ---------------------------------------------------------------------------
+
+  describe "NBA recent scores" do
+    test "shows final scores from the past 5 days" do
+      today = Date.utc_today()
+
+      results =
+        Enum.flat_map(0..4, fn offset ->
+          date = Date.add(today, -offset)
+          date_str = date |> Date.to_string() |> String.replace("-", "")
+
+          case ESPN.scoreboard("basketball", "nba", dates: date_str) do
+            {:ok, games} ->
+              finals = Enum.filter(games, &(&1.status == :final))
+              Enum.map(finals, &Map.put(&1, :date, date))
+
+            {:error, _} ->
+              []
+          end
+        end)
+
+      if results == [] do
+        IO.puts("\n  NBA — no final scores found in the last 5 days")
+      else
+        IO.puts("\n  NBA recent final scores:")
+
+        for g <- results do
+          winner =
+            cond do
+              g.home.score > g.away.score -> "#{g.home.abbrev} win"
+              g.away.score > g.home.score -> "#{g.away.abbrev} win"
+              true -> "tie"
+            end
+
+          IO.puts(
+            "    #{g.date}  #{g.away.abbrev} #{g.away.score} @ #{g.home.abbrev} #{g.home.score}  (#{winner})"
+          )
+        end
+      end
+
+      assert is_list(results)
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # Status values
   # ---------------------------------------------------------------------------
 
