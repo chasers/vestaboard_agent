@@ -57,7 +57,8 @@ defmodule VestaboardAgent.Clients.Anthropic do
   @spec regenerate_tool_script(String.t(), String.t(), term(), keyword()) ::
           {:ok, String.t()} | {:error, term()}
   def regenerate_tool_script(task_description, prev_script, prev_output, opts \\ []) do
-    with {:ok, script} <- complete(retry_script_prompt(task_description, prev_script, prev_output), opts) do
+    with {:ok, script} <-
+           complete(retry_script_prompt(task_description, prev_script, prev_output), opts) do
       {:ok, strip_fences(script)}
     end
   end
@@ -69,14 +70,23 @@ defmodule VestaboardAgent.Clients.Anthropic do
   Returns `{:ok, direction}` where direction is `:up | :down | :left | :right`,
   or `{:error, reason}`.
   """
-  @spec snake_move(String.t(), keyword()) :: {:ok, :up | :down | :left | :right} | {:error, term()}
+  @spec snake_move(String.t(), keyword()) ::
+          {:ok, :up | :down | :left | :right} | {:error, term()}
   def snake_move(ascii_board, opts \\ []) do
     with {:ok, reply} <- complete(snake_prompt(ascii_board), opts) do
       case reply |> String.trim() |> String.upcase() do
-        "UP" -> {:ok, :up}
-        "DOWN" -> {:ok, :down}
-        "LEFT" -> {:ok, :left}
-        "RIGHT" -> {:ok, :right}
+        "UP" ->
+          {:ok, :up}
+
+        "DOWN" ->
+          {:ok, :down}
+
+        "LEFT" ->
+          {:ok, :left}
+
+        "RIGHT" ->
+          {:ok, :right}
+
         other ->
           # Best-effort: pull the first direction word found
           cond do

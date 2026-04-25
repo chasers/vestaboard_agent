@@ -17,11 +17,11 @@ defmodule VestaboardAgent.Snake.Game do
   @type pos :: {non_neg_integer(), non_neg_integer()}
   @type direction :: :up | :down | :left | :right
   @type t :: %{
-    snake: [pos()],
-    food: pos(),
-    direction: direction(),
-    score: non_neg_integer()
-  }
+          snake: [pos()],
+          food: pos(),
+          direction: direction(),
+          score: non_neg_integer()
+        }
 
   @doc "Start a new game with a 3-cell snake in the centre heading right."
   @spec new() :: t()
@@ -33,14 +33,21 @@ defmodule VestaboardAgent.Snake.Game do
 
   @doc "Apply a direction and advance one step. Returns `{:ok, new_state}` or `{:error, :dead}`."
   @spec move(t(), direction()) :: {:ok, t()} | {:error, :dead}
-  def move(%{snake: [head | _] = snake, food: food, score: score, direction: current} = state, direction) do
+  def move(
+        %{snake: [head | _] = snake, food: food, score: score, direction: current} = state,
+        direction
+      ) do
     # Ignore reversal — use current direction instead (classic snake rule)
     effective = if direction == opposite(current), do: current, else: direction
     new_head = step(head, effective)
 
     cond do
-      out_of_bounds?(new_head) -> {:error, :dead}
-      new_head in snake -> {:error, :dead}
+      out_of_bounds?(new_head) ->
+        {:error, :dead}
+
+      new_head in snake ->
+        {:error, :dead}
+
       true ->
         if new_head == food do
           new_state = %{state | snake: [new_head | snake], direction: effective, score: score + 1}
@@ -70,6 +77,7 @@ defmodule VestaboardAgent.Snake.Game do
       for r <- 0..(@rows - 1) do
         for c <- 0..(@cols - 1) do
           pos = {r, c}
+
           cond do
             pos == head -> "H"
             pos in game.snake -> "B"
@@ -116,10 +124,14 @@ defmodule VestaboardAgent.Snake.Game do
     for r <- 0..(@rows - 1) do
       for c <- 0..(@cols - 1) do
         pos = {r, c}
+
         cond do
-          pos == head -> 69  # white
-          pos in body -> 67  # green
-          pos == food -> 63  # red
+          # white
+          pos == head -> 69
+          # green
+          pos in body -> 67
+          # red
+          pos == food -> 63
           true -> 0
         end
       end
@@ -139,9 +151,9 @@ defmodule VestaboardAgent.Snake.Game do
   @doc false
   def step_public(pos, dir), do: step(pos, dir)
 
-  defp step({r, c}, :up),    do: {r - 1, c}
-  defp step({r, c}, :down),  do: {r + 1, c}
-  defp step({r, c}, :left),  do: {r, c - 1}
+  defp step({r, c}, :up), do: {r - 1, c}
+  defp step({r, c}, :down), do: {r + 1, c}
+  defp step({r, c}, :left), do: {r, c - 1}
   defp step({r, c}, :right), do: {r, c + 1}
 
   defp opposite(:up), do: :down

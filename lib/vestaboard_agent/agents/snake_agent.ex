@@ -55,16 +55,20 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
           Logger.info("[snake] stopping previous game (pid #{inspect(pid)}) to start new one")
           Process.exit(pid, :kill)
           ref = Process.monitor(pid)
+
           receive do
             {:DOWN, ^ref, :process, ^pid, _} -> :ok
           after
             3_000 -> :ok
           end
         end
+
         :ets.delete(:snake_locks, @lock_key)
+
       _ ->
         :ok
     end
+
     :ets.insert_new(:snake_locks, {@lock_key, self()})
   end
 
@@ -108,12 +112,17 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
       {hr, hc} = hd(game.snake)
       {fr, fc} = game.food
       dist = abs(fr - hr) + abs(fc - hc)
-      Logger.info("[snake] move=#{direction} safe=#{inspect(safe)} score=#{game.score} head={#{hr},#{hc}} food={#{fr},#{fc}} dist=#{dist} llm=#{elapsed}ms")
+
+      Logger.info(
+        "[snake] move=#{direction} safe=#{inspect(safe)} score=#{game.score} head={#{hr},#{hc}} food={#{fr},#{fc}} dist=#{dist} llm=#{elapsed}ms"
+      )
 
       next_left = if moves_left == :infinity, do: :infinity, else: moves_left - 1
 
       case Game.move(game, direction) do
-        {:ok, new_game} -> play(new_game, llm_opts, dispatch_fn, next_left, min_frame_ms)
+        {:ok, new_game} ->
+          play(new_game, llm_opts, dispatch_fn, next_left, min_frame_ms)
+
         {:error, :dead} ->
           Logger.info("[snake] died on #{direction} — game over (score #{game.score})")
           game_over(game, dispatch_fn)
@@ -127,33 +136,46 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
 
     current_dist = manhattan(head, food)
 
-    closer = Enum.filter(safe, fn dir ->
-      {nr, nc} = Game.step_public(head, dir)
-      abs(fr - nr) + abs(fc - nc) < current_dist
-    end)
+    closer =
+      Enum.filter(safe, fn dir ->
+        {nr, nc} = Game.step_public(head, dir)
+        abs(fr - nr) + abs(fc - nc) < current_dist
+      end)
 
     if closer != [] do
       # At least one safe move reduces distance — pick the closest, skip LLM.
-      best = Enum.min_by(closer, fn dir ->
-        {nr, nc} = Game.step_public(head, dir)
-        abs(fr - nr) + abs(fc - nc)
-      end)
+      best =
+        Enum.min_by(closer, fn dir ->
+          {nr, nc} = Game.step_public(head, dir)
+          abs(fr - nr) + abs(fc - nc)
+        end)
+
       Logger.info("[snake] greedy move=#{best} (#{length(closer)} closer option(s))")
       best
     else
       # All safe moves increase distance — use LLM to navigate around obstacle.
       Logger.info("[snake] no closer moves, asking LLM")
-      fallback = Enum.min_by(safe, fn dir ->
-        {nr, nc} = Game.step_public(head, dir)
-        abs(fr - nr) + abs(fc - nc)
-      end)
+
+      fallback =
+        Enum.min_by(safe, fn dir ->
+          {nr, nc} = Game.step_public(head, dir)
+          abs(fr - nr) + abs(fc - nc)
+        end)
 
       case LLM.snake_move(Game.to_ascii(game), llm_opts) do
         {:ok, dir} when is_atom(dir) ->
-          if dir in safe, do: dir, else: (Logger.info("[snake] LLM chose unsafe #{dir}, using fallback #{fallback}"); fallback)
+          if dir in safe,
+            do: dir,
+            else:
+              (
+                Logger.info("[snake] LLM chose unsafe #{dir}, using fallback #{fallback}")
+                fallback
+              )
+
         {:ok, dir} ->
           Logger.info("[snake] LLM chose unsafe #{dir}, using fallback #{fallback}")
           fallback
+
         {:error, reason} ->
           Logger.warning("[snake] LLM error #{inspect(reason)}, using fallback #{fallback}")
           fallback

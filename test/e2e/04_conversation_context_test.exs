@@ -30,7 +30,13 @@ defmodule VestaboardAgent.E2E.ConversationContextTest do
     end
 
     test "history is capped at 5 entries" do
-      for i <- 1..7, do: (e2e_display("message #{i}"); Process.sleep(200))
+      for i <- 1..7,
+          do:
+            (
+              e2e_display("message #{i}")
+              Process.sleep(200)
+            )
+
       assert length(ConversationContext.history()) == 5
     end
 
@@ -60,7 +66,11 @@ defmodule VestaboardAgent.E2E.ConversationContextTest do
 
       # Advisory only — LLM color choices vary; we verify a border exists and log details
       color_code = hd(first_row)
-      IO.puts("\n  [advisory] border present=#{has_border}, color_code=#{color_code}, text=#{inspect(board.text)}")
+
+      IO.puts(
+        "\n  [advisory] border present=#{has_border}, color_code=#{color_code}, text=#{inspect(board.text)}"
+      )
+
       assert true
     end
   end
@@ -78,6 +88,7 @@ defmodule VestaboardAgent.E2E.ConversationContextTest do
 
       assert board != nil,
              format_context_failure("do that again", result1, result2)
+
       assert board.text != "",
              format_context_failure("do that again", result1, result2)
     end

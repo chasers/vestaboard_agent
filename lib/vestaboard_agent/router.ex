@@ -1,10 +1,18 @@
 defmodule VestaboardAgent.Router do
+  @moduledoc """
+  HTTP router for the Vestaboard agent.
+
+  Endpoints:
+  - `POST /chat` — route a prompt to an agent and dispatch to the board
+  - `GET /board` — retrieve the last successfully dispatched board state
+  """
+
   use Plug.Router
 
-  plug Plug.Logger
-  plug :match
-  plug Plug.Parsers, parsers: [:json], json_decoder: Jason
-  plug :dispatch
+  plug(Plug.Logger)
+  plug(:match)
+  plug(Plug.Parsers, parsers: [:json], json_decoder: Jason)
+  plug(:dispatch)
 
   post "/chat" do
     with %{"prompt" => prompt} when is_binary(prompt) <- conn.body_params,

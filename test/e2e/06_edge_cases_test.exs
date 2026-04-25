@@ -63,6 +63,7 @@ defmodule VestaboardAgent.E2E.EdgeCasesTest do
 
       Enum.each(tasks, fn {:ok, result} ->
         assert result != nil, "Concurrent display returned nil"
+
         refute match?({:error, _}, result),
                "Concurrent display errored: #{inspect(result)}"
       end)
@@ -119,6 +120,7 @@ defmodule VestaboardAgent.E2E.EdgeCasesTest do
       assert String.length(line) == 22
       {:ok, _} = Dispatcher.dispatch(line)
       board = Dispatcher.last_board()
+
       assert String.contains?(board.text, "ABCDEFGHIJKLMNOPQRSTUV"),
              "22-char line was truncated. Got: #{inspect(board.text)}"
     end
@@ -127,6 +129,7 @@ defmodule VestaboardAgent.E2E.EdgeCasesTest do
       text = Enum.join(1..6 |> Enum.map(&"ROW #{&1}"), "\n")
       {:ok, _} = Dispatcher.dispatch(text)
       board = Dispatcher.last_board()
+
       for i <- 1..6 do
         assert String.contains?(board.text, "ROW #{i}"),
                "ROW #{i} missing from 6-line message. Got: #{inspect(board.text)}"

@@ -136,6 +136,7 @@ defmodule VestaboardAgent.Agents.ScheduleAgentTest do
   describe "list/0" do
     test "returns a list of {name, type} tuples" do
       assert is_list(ScheduleAgent.list())
+
       Enum.each(ScheduleAgent.list(), fn {name, type} ->
         assert is_atom(name)
         assert type in [:quantum, :interval]
@@ -145,7 +146,11 @@ defmodule VestaboardAgent.Agents.ScheduleAgentTest do
     test "includes both quantum and interval jobs" do
       q_name = unique_name()
       i_name = unique_name()
-      on_exit(fn -> ScheduleAgent.cancel(q_name); ScheduleAgent.cancel(i_name) end)
+
+      on_exit(fn ->
+        ScheduleAgent.cancel(q_name)
+        ScheduleAgent.cancel(i_name)
+      end)
 
       ScheduleAgent.schedule(q_name, Clock, "* * * * *")
       ScheduleAgent.schedule(i_name, Clock, 5)

@@ -23,10 +23,17 @@ defmodule VestaboardAgent.AgentSupervisor do
     DynamicSupervisor.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  @doc "Start an agent invocation. Returns `{:ok, pid}` immediately."
-  @spec run(module(), String.t(), map()) :: {:ok, pid()} | {:error, term()}
-  def run(agent, prompt, context \\ %{}) do
-    spec = {AgentServer, [agent: agent, prompt: prompt, context: context]}
+  @doc """
+  Start an agent invocation. Returns `{:ok, pid}` immediately.
+
+  Pass `awaiter: pid` in opts to receive `{:agent_result, server_pid, result}`
+  when the agent completes. The awaiter should also monitor the returned pid to
+  handle cancellation (DOWN with reason `:killed`).
+  """
+  @spec run(module(), String.t(), map(), keyword()) :: {:ok, pid()} | {:error, term()}
+  def run(agent, prompt, context \\ %{}, opts \\ []) do
+    awaiter = Keyword.get(opts, :awaiter)
+    spec = {AgentServer, [agent: agent, prompt: prompt, context: context, awaiter: awaiter]}
     DynamicSupervisor.start_child(__MODULE__, spec)
   end
 

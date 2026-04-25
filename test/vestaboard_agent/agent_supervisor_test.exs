@@ -14,6 +14,7 @@ defmodule VestaboardAgent.AgentSupervisorTest do
     @behaviour VestaboardAgent.Agent
     def name, do: "blocking"
     def keywords, do: []
+
     def handle(_prompt, _context) do
       Process.sleep(10_000)
       {:ok, :done}

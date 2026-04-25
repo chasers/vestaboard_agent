@@ -16,10 +16,29 @@ defmodule VestaboardAgent.Agent.Registry do
 
   use GenServer
 
-  alias VestaboardAgent.Agents.{ConversationalAgent, DisplayAgent, DynamicAgent, Greeter, ScheduleAgent, SnakeAgent, SportsAgent, WeatherAgent}
+  alias VestaboardAgent.Agents.{
+    ConversationalAgent,
+    DisplayAgent,
+    DynamicAgent,
+    Greeter,
+    ScheduleAgent,
+    SnakeAgent,
+    SportsAgent,
+    WeatherAgent
+  }
+
   alias VestaboardAgent.Clients.Anthropic, as: LLM
 
-  @default_agents [DisplayAgent, Greeter, WeatherAgent, SportsAgent, ScheduleAgent, SnakeAgent, ConversationalAgent, DynamicAgent]
+  @default_agents [
+    DisplayAgent,
+    Greeter,
+    WeatherAgent,
+    SportsAgent,
+    ScheduleAgent,
+    SnakeAgent,
+    ConversationalAgent,
+    DynamicAgent
+  ]
 
   # --- Public API ---
 
@@ -50,18 +69,18 @@ defmodule VestaboardAgent.Agent.Registry do
   end
 
   @doc """
-  Route a prompt to an agent and call `handle/2`.
+  Resolve a prompt to an agent module without calling `handle/2`.
 
-  Falls back to LLM routing when no keyword match is found, then to
-  `DynamicAgent`. Returns `{:error, :no_match}` only when no API key
-  is configured and keyword matching also fails.
+  Applies keyword matching then LLM routing. Returns `{:ok, module}` or
+  `{:error, :no_match}` when no key is configured and no keyword matched.
+  Use this when you want to start the agent via `AgentSupervisor.run/4`
+  instead of calling `handle/2` inline.
   """
-  @spec handle(String.t(), map()) ::
-          {:ok, :done} | {:ok, :running, term()} | {:error, term()}
-  def handle(prompt, context \\ %{}) do
+  @spec resolve(String.t(), map()) :: {:ok, module()} | {:error, :no_match}
+  def resolve(prompt, context \\ %{}) do
     case route(prompt) do
       {:ok, agent} ->
-        agent.handle(prompt, context)
+        {:ok, agent}
 
       {:error, :no_match} ->
         llm_opts = Map.get(context, :llm_opts, [])
@@ -72,16 +91,32 @@ defmodule VestaboardAgent.Agent.Registry do
         case LLM.route_agent(prompt, agents_meta, routing_opts) do
           {:ok, name} ->
             case find_by_name(name) do
-              {:ok, agent} -> agent.handle(prompt, context)
-              :error -> DynamicAgent.handle(prompt, context)
+              {:ok, agent} -> {:ok, agent}
+              :error -> {:ok, DynamicAgent}
             end
 
           {:error, :missing_api_key} ->
             {:error, :no_match}
 
           {:error, _} ->
-            DynamicAgent.handle(prompt, context)
+            {:ok, DynamicAgent}
         end
+    end
+  end
+
+  @doc """
+  Route a prompt to an agent and call `handle/2`.
+
+  Falls back to LLM routing when no keyword match is found, then to
+  `DynamicAgent`. Returns `{:error, :no_match}` only when no API key
+  is configured and keyword matching also fails.
+  """
+  @spec handle(String.t(), map()) ::
+          {:ok, :done} | {:ok, :running, term()} | {:error, term()}
+  def handle(prompt, context \\ %{}) do
+    case resolve(prompt, context) do
+      {:ok, agent} -> agent.handle(prompt, context)
+      {:error, _} = err -> err
     end
   end
 
@@ -89,8 +124,8 @@ defmodule VestaboardAgent.Agent.Registry do
 
   @impl true
   def init(_opts) do
-    :ets.new(:snake_locks, [:set, :public, :named_table])
-    :ets.new(:display_lock, [:set, :public, :named_table])
+    init_ets_table(:snake_locks)
+    init_ets_table(:display_lock)
     {:ok, @default_agents}
   end
 
@@ -99,10 +134,12 @@ defmodule VestaboardAgent.Agent.Registry do
     {:reply, :ok, [agent | agents]}
   end
 
+  @impl true
   def handle_call(:agents, _from, agents) do
     {:reply, agents, agents}
   end
 
+  @impl true
   def handle_call({:route, prompt}, _from, agents) do
     normalized = String.downcase(prompt)
 
@@ -116,6 +153,12 @@ defmodule VestaboardAgent.Agent.Registry do
   end
 
   # --- Private ---
+
+  defp init_ets_table(name) do
+    :ets.new(name, [:set, :public, :named_table])
+  rescue
+    ArgumentError -> :ok
+  end
 
   defp find_by_name(name) do
     case Enum.find(agents(), fn a -> a.name() == name end) do

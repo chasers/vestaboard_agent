@@ -38,7 +38,8 @@ defmodule VestaboardAgent.Clients.Vestaboard.Cloud do
   @doc "Write a plain-text message. The cloud API handles encoding."
   @spec write_text(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def write_text(text, opts \\ []) when is_binary(text) do
-    body = if Keyword.get(opts, :forced, false), do: %{text: text, forced: true}, else: %{text: text}
+    body =
+      if Keyword.get(opts, :forced, false), do: %{text: text, forced: true}, else: %{text: text}
 
     case Req.post(request(), url: "/", json: body) do
       {:ok, %{status: s, body: resp}} when s in 200..299 -> {:ok, resp}

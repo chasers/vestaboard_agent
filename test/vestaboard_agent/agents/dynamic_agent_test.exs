@@ -127,7 +127,8 @@ defmodule VestaboardAgent.Agents.DynamicAgentTest do
       tool_name = DynamicAgent.derive_tool_name(unique_prompt)
       on_exit(fn -> ToolRegistry.unregister(tool_name) end)
 
-      assert {:ok, "retry succeeded"} = DynamicAgent.handle(unique_prompt, %{llm_opts: [plug: plug]})
+      assert {:ok, "retry succeeded"} =
+               DynamicAgent.handle(unique_prompt, %{llm_opts: [plug: plug]})
     end
 
     test "returns last result immediately when retry budget is zero" do
@@ -143,7 +144,9 @@ defmodule VestaboardAgent.Agents.DynamicAgentTest do
       tool_name = DynamicAgent.derive_tool_name(unique_prompt)
       on_exit(fn -> ToolRegistry.unregister(tool_name) end)
 
-      assert {:ok, ""} = DynamicAgent.handle(unique_prompt, %{llm_opts: [plug: plug], retry_budget_ms: 0})
+      assert {:ok, ""} =
+               DynamicAgent.handle(unique_prompt, %{llm_opts: [plug: plug], retry_budget_ms: 0})
+
       assert :counters.get(counter, 1) == 1, "expected exactly 1 LLM call with zero budget"
     end
   end

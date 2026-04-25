@@ -11,7 +11,13 @@ defmodule VestaboardAgent.FormatterTest do
   end
 
   defp llm_opts(response_text) do
-    [llm_opts: [plug: fn conn -> Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => response_text}]}) end]]
+    [
+      llm_opts: [
+        plug: fn conn ->
+          Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => response_text}]})
+        end
+      ]
+    ]
   end
 
   test "returns formatted text and border color from LLM" do
@@ -63,7 +69,12 @@ defmodule VestaboardAgent.FormatterTest do
             decoded = Jason.decode!(body)
             prompt_text = get_in(decoded, ["messages", Access.at(0), "content"])
             send(parent, {:prompt, prompt_text})
-            Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => ~s({"text": "SUNNY", "border_color": "orange"})}]})
+
+            Req.Test.json(conn, %{
+              "content" => [
+                %{"type" => "text", "text" => ~s({"text": "SUNNY", "border_color": "orange"})}
+              ]
+            })
           end
         ]
       ]

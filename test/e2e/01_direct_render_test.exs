@@ -52,8 +52,10 @@ defmodule VestaboardAgent.E2E.DirectRenderTest do
       board = Dispatcher.last_board()
       first_row = hd(board.grid)
       color_code = hd(first_row)
+
       assert color_code in Map.values(Renderer.color_codes()),
              "Expected first row to be a border color, got: #{inspect(first_row)}"
+
       assert Enum.all?(first_row, &(&1 == color_code)),
              "Expected uniform border row, got: #{inspect(first_row)}"
     end
@@ -61,6 +63,7 @@ defmodule VestaboardAgent.E2E.DirectRenderTest do
     test "inner content is still readable with border" do
       {:ok, _} = Dispatcher.dispatch("BORDERED", border: "red")
       board = Dispatcher.last_board()
+
       assert String.contains?(board.text, "BORDERED"),
              "Expected 'BORDERED' in decoded text, got: #{inspect(board.text)}"
     end
@@ -111,6 +114,7 @@ defmodule VestaboardAgent.E2E.DirectRenderTest do
       board = Dispatcher.last_board()
       content_rows = Enum.reject(board.grid, &Enum.all?(&1, fn c -> c == 0 end))
       first_content_row = hd(content_rows)
+
       assert hd(first_content_row) != 0,
              "Expected left-aligned row to start non-blank, got: #{inspect(first_content_row)}"
     end

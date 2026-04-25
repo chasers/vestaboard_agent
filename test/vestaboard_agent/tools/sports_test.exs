@@ -6,8 +6,16 @@ defmodule VestaboardAgent.Tools.SportsTest do
   defp make_game(overrides \\ []) do
     %{
       id: Keyword.get(overrides, :id, "1"),
-      home: %{abbrev: Keyword.get(overrides, :home, "KC"), name: "Kansas City Chiefs", score: Keyword.get(overrides, :home_score, 27)},
-      away: %{abbrev: Keyword.get(overrides, :away, "BUF"), name: "Buffalo Bills", score: Keyword.get(overrides, :away_score, 24)},
+      home: %{
+        abbrev: Keyword.get(overrides, :home, "KC"),
+        name: "Kansas City Chiefs",
+        score: Keyword.get(overrides, :home_score, 27)
+      },
+      away: %{
+        abbrev: Keyword.get(overrides, :away, "BUF"),
+        name: "Buffalo Bills",
+        score: Keyword.get(overrides, :away_score, 24)
+      },
       status: Keyword.get(overrides, :status, :final),
       clock: Keyword.get(overrides, :clock, nil),
       period: Keyword.get(overrides, :period, nil),
@@ -126,8 +134,10 @@ defmodule VestaboardAgent.Tools.SportsTest do
 
   test "returns no-games message when no games today and no team filter" do
     Req.Test.stub(__MODULE__, fn conn -> Req.Test.json(conn, %{"events" => []}) end)
+
     assert {:ok, %{text: text, live: false}} =
              Sports.run(%{sport: "football", league: "nfl", plug: {Req.Test, __MODULE__}})
+
     assert String.contains?(text, "NO")
     assert String.contains?(text, "GAMES")
   end
@@ -135,7 +145,10 @@ defmodule VestaboardAgent.Tools.SportsTest do
   test "returns fallback message when team not found in today or upcoming games" do
     # Stub returns KC/BUF for every request (today + all upcoming days), so LAL is never found
     f = stub_sports([make_game(home: "KC", away: "BUF", status: :final)])
-    assert {:ok, %{text: text, live: false}} = f.(%{sport: "football", league: "nfl", team: "LAL"})
+
+    assert {:ok, %{text: text, live: false}} =
+             f.(%{sport: "football", league: "nfl", team: "LAL"})
+
     assert String.contains?(text, "LAL")
     assert String.contains?(text, "NO")
   end
@@ -144,23 +157,53 @@ defmodule VestaboardAgent.Tools.SportsTest do
     # Stub returns different responses based on whether a 'dates' query param is present.
     # No dates param → today's games (KC/BUF only, LAL absent).
     # dates param present → tomorrow's games (LAL/BOS).
-    future_game = make_game(home: "LAL", away: "BOS", status: :scheduled, start_time: "2026-04-26T00:00:00Z", home_score: nil, away_score: nil)
+    future_game =
+      make_game(
+        home: "LAL",
+        away: "BOS",
+        status: :scheduled,
+        start_time: "2026-04-26T00:00:00Z",
+        home_score: nil,
+        away_score: nil
+      )
 
     Req.Test.stub(__MODULE__, fn conn ->
       query = URI.decode_query(conn.query_string)
-      games = if Map.has_key?(query, "dates"), do: [future_game], else: [make_game(home: "KC", away: "BUF", status: :final)]
+
+      games =
+        if Map.has_key?(query, "dates"),
+          do: [future_game],
+          else: [make_game(home: "KC", away: "BUF", status: :final)]
+
       Req.Test.json(conn, %{"events" => [build_espn_event(hd(games))]})
     end)
 
     assert {:ok, %{text: text, live: false}} =
-             Sports.run(%{sport: "basketball", league: "nba", team: "LAL", plug: {Req.Test, __MODULE__}})
+             Sports.run(%{
+               sport: "basketball",
+               league: "nba",
+               team: "LAL",
+               plug: {Req.Test, __MODULE__}
+             })
 
     assert String.contains?(text, "LAL")
     assert String.contains?(text, "NEXT GAME")
   end
 
   test "formats in-progress game with score and period/clock" do
-    f = stub_sports([make_game(home: "KC", home_score: 27, away: "BUF", away_score: 24, status: :in_progress, period: 3, clock: "4:32")])
+    f =
+      stub_sports([
+        make_game(
+          home: "KC",
+          home_score: 27,
+          away: "BUF",
+          away_score: 24,
+          status: :in_progress,
+          period: 3,
+          clock: "4:32"
+        )
+      ])
+
     assert {:ok, %{text: text}} = f.(%{sport: "football", league: "nfl"})
     assert String.contains?(text, "27")
     assert String.contains?(text, "24")
@@ -169,13 +212,26 @@ defmodule VestaboardAgent.Tools.SportsTest do
   end
 
   test "formats final game with FINAL label" do
-    f = stub_sports([make_game(home: "KC", home_score: 27, away: "BUF", away_score: 24, status: :final)])
+    f =
+      stub_sports([
+        make_game(home: "KC", home_score: 27, away: "BUF", away_score: 24, status: :final)
+      ])
+
     assert {:ok, %{text: text}} = f.(%{sport: "football", league: "nfl"})
     assert String.contains?(text, "FINAL")
   end
 
   test "formats scheduled game with TODAY and tip-off time" do
-    f = stub_sports([make_game(status: :scheduled, home_score: nil, away_score: nil, start_time: "2026-04-25T23:30:00Z")])
+    f =
+      stub_sports([
+        make_game(
+          status: :scheduled,
+          home_score: nil,
+          away_score: nil,
+          start_time: "2026-04-25T23:30:00Z"
+        )
+      ])
+
     assert {:ok, %{text: text}} = f.(%{sport: "football", league: "nfl"})
     assert String.contains?(text, "TODAY")
     assert String.contains?(text, "PM")

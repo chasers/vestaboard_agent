@@ -225,10 +225,10 @@ Review the codebase for architectural correctness and Elixir best practices. Cle
 
 | | Item | Notes |
 |---|---|---|
-| ⬜ | **12a** Architecture review | Check supervision tree, GenServer usage, ETS ownership, process boundaries; document findings |
-| ⬜ | **12b** Wire `AgentSupervisor` into the display path | `Registry.handle/2` calls `agent.handle/2` directly in the Telegram polling process — agents are unsupervised and a crash takes down the bot. Replace with `AgentSupervisor.run/3` so each invocation is a supervised child; update the ETS display lock to track the `AgentServer` pid instead of the caller pid |
-| ⬜ | **12c** Elixir best practices pass | Typespecs, `@doc`, pattern matching, avoid anti-patterns (e.g. `send` where `call` is correct, naked `spawn`) |
-| ⬜ | **12d** Cleanup | Remove dead code, fix warnings, enforce `mix format` + `mix credo` |
+| ✅ | **12a** Architecture review | Identified ETS race conditions, unsupervised Task in TelegramBot, missing `@impl true`, ETS crash recovery gap, formatting issues |
+| ✅ | **12b** Wire `AgentSupervisor` into the display path | `display/1` now calls `Registry.resolve` → `AgentSupervisor.run/4` (with `awaiter: self()`); display lock tracks `AgentServer` pid; preempt uses `AgentSupervisor.cancel` instead of `Process.exit` |
+| ✅ | **12c** Elixir best practices pass | Added `@impl true` to all `handle_call` clauses in Registry; added `@moduledoc` to Router and Scheduler; added `resolve/2` typespec and doc; added `@doc` to `AgentSupervisor.run/4` |
+| ✅ | **12d** Cleanup | `mix format` passes; added `credo ~> 1.7` to dev/test deps; ETS table init now handles pre-existing tables (crash recovery); `Registry.handle/2` simplified to delegate to `resolve/2` |
 
 ---
 

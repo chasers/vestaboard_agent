@@ -19,11 +19,12 @@ defmodule VestaboardAgent.E2E.SnakeTest do
         {:ok, :mocked}
       end
 
-      {:ok, :done} = SnakeAgent.handle("play snake", %{
-        dispatch_fn: dispatch_fn,
-        max_moves: 50,
-        min_frame_ms: 0
-      })
+      {:ok, :done} =
+        SnakeAgent.handle("play snake", %{
+          dispatch_fn: dispatch_fn,
+          max_moves: 50,
+          min_frame_ms: 0
+        })
 
       sent = Agent.get(sent_frames, & &1) |> Enum.reverse()
 
@@ -39,7 +40,7 @@ defmodule VestaboardAgent.E2E.SnakeTest do
       # --- Head found in every game frame ---
       Enum.each(Enum.with_index(heads), fn {pos, i} ->
         assert pos != nil,
-          "No head (value #{@head_code}) found in frame #{i}.\nFrame: #{inspect(Enum.at(game_frames, i))}"
+               "No head (value #{@head_code}) found in frame #{i}.\nFrame: #{inspect(Enum.at(game_frames, i))}"
       end)
 
       # --- Consecutive frames: head moves exactly 1 cell ---
@@ -52,10 +53,10 @@ defmodule VestaboardAgent.E2E.SnakeTest do
         dist = abs(ra - rb) + abs(ca - cb)
 
         assert dist != 0,
-          "Frame #{i}→#{i + 1}: snake head did not move (stuck at {#{ra}, #{ca}})"
+               "Frame #{i}→#{i + 1}: snake head did not move (stuck at {#{ra}, #{ca}})"
 
         assert dist == 1,
-          "Frame #{i}→#{i + 1}: head jumped #{dist} cells from {#{ra},#{ca}} to {#{rb},#{cb}} — expected adjacent step"
+               "Frame #{i}→#{i + 1}: head jumped #{dist} cells from {#{ra},#{ca}} to {#{rb},#{cb}} — expected adjacent step"
       end)
 
       # --- Body in frame N+1 starts where head was in frame N (snake continuity) ---
@@ -67,7 +68,7 @@ defmodule VestaboardAgent.E2E.SnakeTest do
         next_body = body_positions(frame_b)
 
         assert prev_head in next_body,
-          "Frame #{i}→#{i + 1}: previous head #{inspect(prev_head)} not found in next body #{inspect(next_body)}"
+               "Frame #{i}→#{i + 1}: previous head #{inspect(prev_head)} not found in next body #{inspect(next_body)}"
       end)
 
       # --- Body length never shrinks between frames (same size or +1 when food eaten) ---
@@ -80,10 +81,10 @@ defmodule VestaboardAgent.E2E.SnakeTest do
         delta = len_b - len_a
 
         assert delta >= 0,
-          "Frame #{i}→#{i + 1}: body shrunk from #{len_a} to #{len_b} cells"
+               "Frame #{i}→#{i + 1}: body shrunk from #{len_a} to #{len_b} cells"
 
         assert delta <= 1,
-          "Frame #{i}→#{i + 1}: body grew by #{delta} cells (expected 0 or 1)"
+               "Frame #{i}→#{i + 1}: body grew by #{delta} cells (expected 0 or 1)"
       end)
 
       # --- Snake net-approaches food: more moves closer than farther ---
@@ -108,11 +109,13 @@ defmodule VestaboardAgent.E2E.SnakeTest do
         |> Enum.reject(fn [fa, fb] -> food_position(fa) != food_position(fb) end)
         |> length()
 
-      IO.puts("  [snake e2e] food-approach: #{closer_moves}/#{same_food_transitions} moves closer to food")
+      IO.puts(
+        "  [snake e2e] food-approach: #{closer_moves}/#{same_food_transitions} moves closer to food"
+      )
 
       if same_food_transitions > 0 do
         assert closer_moves >= div(same_food_transitions, 2),
-          "Snake moved toward food on only #{closer_moves}/#{same_food_transitions} moves — LLM is not seeking food effectively"
+               "Snake moved toward food on only #{closer_moves}/#{same_food_transitions} moves — LLM is not seeking food effectively"
       end
 
       # --- Each snake cell has at least one adjacent snake neighbor (no gaps) ---
@@ -131,7 +134,7 @@ defmodule VestaboardAgent.E2E.SnakeTest do
             adjacent = Enum.count(neighbors, &MapSet.member?(snake_set, &1))
 
             assert adjacent >= 1,
-              "Frame #{i}: snake cell #{inspect({r, c})} has no adjacent snake neighbors — gap detected.\nSnake: #{inspect(snake)}"
+                   "Frame #{i}: snake cell #{inspect({r, c})} has no adjacent snake neighbors — gap detected.\nSnake: #{inspect(snake)}"
           end)
         end
       end)

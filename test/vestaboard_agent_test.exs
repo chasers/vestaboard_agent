@@ -28,9 +28,13 @@ defmodule VestaboardAgentTest do
   end
 
   defp llm_stub(response_text) do
-    [llm_opts: [plug: fn conn ->
-      Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => response_text}]})
-    end]]
+    [
+      llm_opts: [
+        plug: fn conn ->
+          Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => response_text}]})
+        end
+      ]
+    ]
   end
 
   test "display/2 routes keyword match through formatter and writes to board" do

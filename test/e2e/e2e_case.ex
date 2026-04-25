@@ -99,9 +99,7 @@ defmodule VestaboardAgent.E2ECase do
       |> Enum.filter(&(String.length(&1) > max_len))
 
     unless violations == [] do
-      ExUnit.Assertions.flunk(
-        format_failure(result, {:line_lengths, max_len, violations})
-      )
+      ExUnit.Assertions.flunk(format_failure(result, {:line_lengths, max_len, violations}))
     end
   end
 
@@ -133,14 +131,21 @@ defmodule VestaboardAgent.E2ECase do
   # Failure formatting
   # ---------------------------------------------------------------------------
 
-  defp format_failure(%{prompt: prompt, display_result: dr, last_board: board, elapsed_ms: ms, timestamp: ts}, expectation) do
+  defp format_failure(
+         %{prompt: prompt, display_result: dr, last_board: board, elapsed_ms: ms, timestamp: ts},
+         expectation
+       ) do
     text = (board && board.text) || "(nil)"
     grid_summary = board && grid_preview(board.grid)
 
     expectation_line =
       case expectation do
-        {:contains, %Regex{} = r} -> "contains regex  #{inspect(r)}"
-        {:contains, s} -> "contains        #{inspect(s)}"
+        {:contains, %Regex{} = r} ->
+          "contains regex  #{inspect(r)}"
+
+        {:contains, s} ->
+          "contains        #{inspect(s)}"
+
         {:line_lengths, max, violations} ->
           "each line ≤ #{max} chars\nVIOLATIONS\n  #{Enum.join(violations, "\n  ")}"
       end

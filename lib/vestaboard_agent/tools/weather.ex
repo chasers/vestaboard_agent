@@ -22,6 +22,7 @@ defmodule VestaboardAgent.Tools.Weather do
   def run(context \\ %{}) do
     with {:ok, lat, lon} <- location(context) do
       opts = if plug = Map.get(context, :plug), do: [plug: plug], else: []
+
       case OpenMeteo.fetch(lat, lon, opts) do
         {:ok, data} -> {:ok, format(data)}
         {:error, _} = err -> err

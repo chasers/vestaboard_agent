@@ -6,7 +6,9 @@ defmodule VestaboardAgent.Clients.ESPNTest do
   defp plug, do: {Req.Test, __MODULE__}
 
   defp stub(body), do: Req.Test.stub(__MODULE__, fn conn -> Req.Test.json(conn, body) end)
-  defp stub_status(status), do: Req.Test.stub(__MODULE__, fn conn -> Plug.Conn.send_resp(conn, status, "") end)
+
+  defp stub_status(status),
+    do: Req.Test.stub(__MODULE__, fn conn -> Plug.Conn.send_resp(conn, status, "") end)
 
   defp game_fixture(overrides \\ %{}) do
     base = %{
@@ -43,7 +45,11 @@ defmodule VestaboardAgent.Clients.ESPNTest do
   end
 
   defp set_status(body, status_name) do
-    put_in(body, ["events", Access.at(0), "competitions", Access.at(0), "status", "type", "name"], status_name)
+    put_in(
+      body,
+      ["events", Access.at(0), "competitions", Access.at(0), "status", "type", "name"],
+      status_name
+    )
   end
 
   test "returns a list of games on 200" do
@@ -94,9 +100,18 @@ defmodule VestaboardAgent.Clients.ESPNTest do
   test "games sorted in-progress first, then scheduled, then final" do
     body = %{
       "events" => [
-        game_fixture()["events"] |> hd() |> put_in(["id"], "final") |> put_in(["competitions", Access.at(0), "status", "type", "name"], "STATUS_FINAL"),
-        game_fixture()["events"] |> hd() |> put_in(["id"], "live") |> put_in(["competitions", Access.at(0), "status", "type", "name"], "STATUS_IN_PROGRESS"),
-        game_fixture()["events"] |> hd() |> put_in(["id"], "sched") |> put_in(["competitions", Access.at(0), "status", "type", "name"], "STATUS_SCHEDULED")
+        game_fixture()["events"]
+        |> hd()
+        |> put_in(["id"], "final")
+        |> put_in(["competitions", Access.at(0), "status", "type", "name"], "STATUS_FINAL"),
+        game_fixture()["events"]
+        |> hd()
+        |> put_in(["id"], "live")
+        |> put_in(["competitions", Access.at(0), "status", "type", "name"], "STATUS_IN_PROGRESS"),
+        game_fixture()["events"]
+        |> hd()
+        |> put_in(["id"], "sched")
+        |> put_in(["competitions", Access.at(0), "status", "type", "name"], "STATUS_SCHEDULED")
       ]
     }
 
@@ -121,7 +136,15 @@ defmodule VestaboardAgent.Clients.ESPNTest do
     body =
       put_in(
         game_fixture(),
-        ["events", Access.at(0), "competitions", Access.at(0), "competitors", Access.at(0), "score"],
+        [
+          "events",
+          Access.at(0),
+          "competitions",
+          Access.at(0),
+          "competitors",
+          Access.at(0),
+          "score"
+        ],
         nil
       )
 
@@ -165,15 +188,17 @@ defmodule VestaboardAgent.Clients.ESPNTest do
 
     test "returns first day that contains the team" do
       today_str = Date.utc_today() |> Date.to_string() |> String.replace("-", "")
-      tomorrow_str = Date.utc_today() |> Date.add(1) |> Date.to_string() |> String.replace("-", "")
+
+      tomorrow_str =
+        Date.utc_today() |> Date.add(1) |> Date.to_string() |> String.replace("-", "")
 
       Req.Test.stub(__MODULE__, fn conn ->
         query = URI.decode_query(conn.query_string)
 
         cond do
-          query["dates"] == today_str    -> Req.Test.json(conn, %{"events" => []})
+          query["dates"] == today_str -> Req.Test.json(conn, %{"events" => []})
           query["dates"] == tomorrow_str -> Req.Test.json(conn, game_fixture())
-          true                           -> Req.Test.json(conn, %{"events" => []})
+          true -> Req.Test.json(conn, %{"events" => []})
         end
       end)
 

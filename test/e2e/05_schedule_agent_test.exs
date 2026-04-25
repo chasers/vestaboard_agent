@@ -18,8 +18,10 @@ defmodule VestaboardAgent.E2E.ScheduleAgentTest do
       Process.sleep(3_500)
 
       board = Dispatcher.last_board()
+
       assert board != nil,
              "Board was not updated after 3.5s — interval job may not have fired (job: #{name})"
+
       assert String.match?(board.text, ~r/\d+:\d+/),
              "Expected time pattern after Clock fires, got: #{inspect(board.text)}"
     end
@@ -44,8 +46,10 @@ defmodule VestaboardAgent.E2E.ScheduleAgentTest do
       ScheduleAgent.schedule(name, Clock, 10)
 
       jobs = ScheduleAgent.list()
+
       assert Keyword.has_key?(jobs, name),
              "Expected #{name} in job list, got: #{inspect(jobs)}"
+
       assert Keyword.get(jobs, name) == :interval
     end
 
@@ -66,8 +70,10 @@ defmodule VestaboardAgent.E2E.ScheduleAgentTest do
       ScheduleAgent.schedule(name, Clock, "* * * * *")
 
       jobs = ScheduleAgent.list()
+
       assert Keyword.has_key?(jobs, name),
              "Expected #{name} in job list, got: #{inspect(jobs)}"
+
       assert Keyword.get(jobs, name) == :quantum
     end
 

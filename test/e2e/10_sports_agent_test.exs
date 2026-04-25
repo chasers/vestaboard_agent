@@ -39,6 +39,7 @@ defmodule VestaboardAgent.E2E.SportsAgentTest do
       case Sports.run(%{sport: "football", league: "nfl"}) do
         {:ok, %{text: text}} ->
           {:ok, _} = Dispatcher.dispatch(text)
+
           result = %{
             prompt: "sports tool direct",
             display_result: {:ok, :done},
@@ -61,6 +62,7 @@ defmodule VestaboardAgent.E2E.SportsAgentTest do
         {:ok, %{text: text}} ->
           {:ok, _} = Dispatcher.dispatch(text)
           board = Dispatcher.last_board()
+
           assert String.contains?(board.text, "NFL"),
                  "Expected 'NFL' in board text, got: #{inspect(board.text)}"
 
@@ -81,6 +83,7 @@ defmodule VestaboardAgent.E2E.SportsAgentTest do
 
     test "'show nba scores' routes to SportsAgent and updates the board" do
       result = e2e_display("show nba scores")
+
       assert result.display_result == {:ok, :done},
              "Expected {:ok, :done}, got: #{inspect(result.display_result)}"
     end

@@ -9,6 +9,7 @@ defmodule VestaboardAgent.E2E.HttpChatTest do
   describe "POST /chat" do
     test "valid prompt returns ok:true and updates the board", context do
       body = e2e_http_post(context, %{"prompt" => "hello"})
+
       assert body["ok"] == true,
              "Expected ok:true, got: #{inspect(body)}"
 
@@ -25,15 +26,18 @@ defmodule VestaboardAgent.E2E.HttpChatTest do
     end
 
     test "non-JSON body returns 400", context do
-      resp = Req.post!("#{context[:http_base]}/chat",
-        headers: [{"content-type", "text/plain"}],
-        body: "just a string"
-      )
+      resp =
+        Req.post!("#{context[:http_base]}/chat",
+          headers: [{"content-type", "text/plain"}],
+          body: "just a string"
+        )
+
       assert resp.status in [400, 415]
     end
 
     test "prompt with special characters is handled gracefully", context do
       body = e2e_http_post(context, %{"prompt" => "show price $4.99/lb today"})
+
       assert body["ok"] == true,
              "Expected ok:true for special char prompt, got: #{inspect(body)}"
     end
@@ -53,10 +57,13 @@ defmodule VestaboardAgent.E2E.HttpChatTest do
 
       assert status == 200
       assert body["ok"] == true
+
       assert is_list(body["grid"]),
              "Expected grid to be a list, got: #{inspect(body["grid"])}"
+
       assert is_binary(body["text"]),
              "Expected text to be a string, got: #{inspect(body["text"])}"
+
       assert length(body["grid"]) == 6,
              "Expected 6 grid rows, got: #{length(body["grid"])}"
     end

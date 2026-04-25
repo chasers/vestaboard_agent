@@ -88,6 +88,7 @@ defmodule VestaboardAgent.Formatter do
       |> Enum.with_index(1)
       |> Enum.map(fn {%{prompt: p, text: t, render_opts: r}, i} ->
         border = Keyword.get(r, :border, "none")
+
         "#{i}. Prompt: \"#{p}\" → Displayed: \"#{String.replace(t, "\n", "↵")}\" (border: #{border})"
       end)
       |> Enum.join("\n")

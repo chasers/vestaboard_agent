@@ -14,7 +14,8 @@ defmodule VestaboardAgent.Agents.WeatherAgent do
   def name, do: "weather"
 
   @impl true
-  def keywords, do: ["weather", "forecast", "temperature", "temp", "outside", "how hot", "how cold"]
+  def keywords,
+    do: ["weather", "forecast", "temperature", "temp", "outside", "how hot", "how cold"]
 
   @impl true
   def handle(_prompt, context) do

@@ -14,7 +14,8 @@ defmodule VestaboardAgent.Agents.Greeter do
   def name, do: "greeter"
 
   @impl true
-  def keywords, do: ["greet", "greeting", "hello", "good morning", "good afternoon", "good evening"]
+  def keywords,
+    do: ["greet", "greeting", "hello", "good morning", "good afternoon", "good evening"]
 
   @impl true
   def handle(_prompt, context) do
