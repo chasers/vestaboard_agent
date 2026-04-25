@@ -5,7 +5,7 @@ defmodule VestaboardAgent.Agents.SportsAgentTest do
 
   defp capture_dispatches do
     parent = self()
-    fn text -> send(parent, {:dispatched, text}); {:ok, %{}} end
+    fn text, _render_opts -> send(parent, {:dispatched, text}); {:ok, %{}} end
   end
 
   defp sports_returning(results) do
@@ -19,7 +19,14 @@ defmodule VestaboardAgent.Agents.SportsAgentTest do
   end
 
   defp ctx(overrides \\ []) do
-    Map.merge(%{dispatch_fn: capture_dispatches(), refresh_ms: 0}, Map.new(overrides))
+    Map.merge(
+      %{
+        dispatch_fn: capture_dispatches(),
+        format_fn: fn text -> {:ok, text, []} end,
+        refresh_ms: 0
+      },
+      Map.new(overrides)
+    )
   end
 
   describe "name/0 and keywords/0" do
