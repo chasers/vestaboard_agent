@@ -1,4 +1,4 @@
-defmodule VestaboardAgent.Client.Local do
+defmodule VestaboardAgent.Clients.Vestaboard.Local do
   @moduledoc """
   Vestaboard local network API client.
 
@@ -8,7 +8,7 @@ defmodule VestaboardAgent.Client.Local do
   Configure via:
 
       config :vestaboard_agent, :client,
-        backend: VestaboardAgent.Client.Local,
+        backend: VestaboardAgent.Clients.Vestaboard.Local,
         api_key: System.get_env("VESTABOARD_LOCAL_API_KEY"),
         base_url: "http://vestaboard.local:7000"  # or use the board's IP
 
@@ -17,14 +17,14 @@ defmodule VestaboardAgent.Client.Local do
   Before using the local API, you must enable it once with an enablement token
   obtained from Vestaboard:
 
-      VestaboardAgent.Client.Local.enable("your-enablement-token")
+      VestaboardAgent.Clients.Vestaboard.Local.enable("your-enablement-token")
 
   This returns an API key which you then store in config.
   """
 
   require Logger
 
-  @behaviour VestaboardAgent.Client
+  @behaviour VestaboardAgent.Clients.Vestaboard
 
   @default_base_url "http://vestaboard.local:7000"
   @path "/local-api/message"
@@ -80,7 +80,7 @@ defmodule VestaboardAgent.Client.Local do
   end
 
   defp backoff_ms(attempt) do
-    base = VestaboardAgent.Client.config(:backoff_base_ms, @base_backoff_ms)
+    base = VestaboardAgent.Clients.Vestaboard.config(:backoff_base_ms, @base_backoff_ms)
     jitter = :rand.uniform(200) - 100
     (base * :math.pow(2, attempt)) |> round() |> Kernel.+(jitter) |> max(0)
   end
@@ -114,12 +114,12 @@ defmodule VestaboardAgent.Client.Local do
   end
 
   defp merge_test_plug(req) do
-    case VestaboardAgent.Client.config(:plug) do
+    case VestaboardAgent.Clients.Vestaboard.config(:plug) do
       nil -> req
       plug -> Req.merge(req, plug: plug)
     end
   end
 
-  defp base_url, do: VestaboardAgent.Client.config(:base_url, @default_base_url)
-  defp api_key, do: VestaboardAgent.Client.config(:api_key, "")
+  defp base_url, do: VestaboardAgent.Clients.Vestaboard.config(:base_url, @default_base_url)
+  defp api_key, do: VestaboardAgent.Clients.Vestaboard.config(:api_key, "")
 end

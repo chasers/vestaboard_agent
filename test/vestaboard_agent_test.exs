@@ -13,7 +13,7 @@ defmodule VestaboardAgentTest do
     Application.put_env(:vestaboard_agent, :llm, api_key: "test-key")
 
     Application.put_env(:vestaboard_agent, :client,
-      backend: VestaboardAgent.Client.Local,
+      backend: VestaboardAgent.Clients.Vestaboard.Local,
       api_key: "test-key",
       base_url: "http://vestaboard.local:7000",
       plug: {Req.Test, __MODULE__}

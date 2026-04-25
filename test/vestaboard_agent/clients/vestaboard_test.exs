@@ -1,10 +1,10 @@
-defmodule VestaboardAgent.ClientTest do
+defmodule VestaboardAgent.Clients.VestaboardTest do
   use ExUnit.Case, async: false
 
-  alias VestaboardAgent.Client
+  alias VestaboardAgent.Clients.Vestaboard
 
   defmodule StubBackend do
-    @behaviour VestaboardAgent.Client
+    @behaviour VestaboardAgent.Clients.Vestaboard
     @impl true
     def read, do: {:ok, []}
     @impl true
@@ -19,12 +19,12 @@ defmodule VestaboardAgent.ClientTest do
   describe "backend/0" do
     test "defaults to Cloud" do
       Application.put_env(:vestaboard_agent, :client, [])
-      assert Client.backend() == VestaboardAgent.Client.Cloud
+      assert Vestaboard.backend() == VestaboardAgent.Clients.Vestaboard.Cloud
     end
 
     test "returns the configured backend" do
       Application.put_env(:vestaboard_agent, :client, backend: StubBackend)
-      assert Client.backend() == StubBackend
+      assert Vestaboard.backend() == StubBackend
     end
   end
 
@@ -34,11 +34,11 @@ defmodule VestaboardAgent.ClientTest do
     end
 
     test "read/0 delegates to backend" do
-      assert {:ok, []} = Client.read()
+      assert {:ok, []} = Vestaboard.read()
     end
 
     test "write_characters/1 delegates to backend" do
-      assert {:ok, %{}} = Client.write_characters([[0]])
+      assert {:ok, %{}} = Vestaboard.write_characters([[0]])
     end
   end
 end

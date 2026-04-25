@@ -16,7 +16,8 @@ defmodule VestaboardAgent.Dispatcher do
 
   use GenServer
 
-  alias VestaboardAgent.{Client, Renderer}
+  alias VestaboardAgent.Clients.Vestaboard, as: Client
+  alias VestaboardAgent.Renderer
 
   @default_ttl_ms 30_000
 

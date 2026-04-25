@@ -1,7 +1,7 @@
-defmodule VestaboardAgent.Client.LocalTest do
+defmodule VestaboardAgent.Clients.Vestaboard.LocalTest do
   use ExUnit.Case, async: false
 
-  alias VestaboardAgent.Client.Local
+  alias VestaboardAgent.Clients.Vestaboard.Local
 
   @grid List.duplicate(List.duplicate(0, 22), 6)
 

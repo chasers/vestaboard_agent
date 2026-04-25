@@ -12,7 +12,7 @@ defmodule VestaboardAgent.Agents.ConversationalAgent do
 
   @behaviour VestaboardAgent.Agent
 
-  alias VestaboardAgent.LLM
+  alias VestaboardAgent.Clients.Anthropic, as: LLM
 
   @impl true
   def name, do: "conversational"

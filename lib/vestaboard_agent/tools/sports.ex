@@ -22,7 +22,7 @@ defmodule VestaboardAgent.Tools.Sports do
 
   @behaviour VestaboardAgent.Tool
 
-  alias VestaboardAgent.ESPNClient
+  alias VestaboardAgent.Clients.ESPN, as: ESPNClient
 
   @impl true
   def name, do: "sports"

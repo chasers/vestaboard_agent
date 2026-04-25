@@ -1,26 +1,26 @@
-defmodule VestaboardAgent.Client do
+defmodule VestaboardAgent.Clients.Vestaboard do
   @moduledoc """
   Behaviour and dispatch module for the Vestaboard API.
 
   Supports two backends:
 
-    * `VestaboardAgent.Client.Cloud` — Vestaboard cloud API
-    * `VestaboardAgent.Client.Local` — local network API (direct board access)
+    * `VestaboardAgent.Clients.Vestaboard.Cloud` — Vestaboard cloud API
+    * `VestaboardAgent.Clients.Vestaboard.Local` — local network API (direct board access)
 
   Configure the active backend in `config/runtime.exs`:
 
       config :vestaboard_agent, :client,
-        backend: VestaboardAgent.Client.Cloud,
+        backend: VestaboardAgent.Clients.Vestaboard.Cloud,
         token: System.get_env("VESTABOARD_TOKEN")
 
       # or for local:
       config :vestaboard_agent, :client,
-        backend: VestaboardAgent.Client.Local,
+        backend: VestaboardAgent.Clients.Vestaboard.Local,
         api_key: System.get_env("VESTABOARD_LOCAL_API_KEY"),
         base_url: "http://vestaboard.local:7000"
 
   Both backends share the callbacks below. Cloud-only features (text messages,
-  transitions) live directly on `VestaboardAgent.Client.Cloud`.
+  transitions) live directly on `VestaboardAgent.Clients.Vestaboard.Cloud`.
   """
 
   @doc "Read the current message from the board. Returns a 6×22 character code grid."
@@ -40,7 +40,7 @@ defmodule VestaboardAgent.Client do
   @doc "Return the configured backend module."
   @spec backend() :: module()
   def backend do
-    config(:backend, VestaboardAgent.Client.Cloud)
+    config(:backend, VestaboardAgent.Clients.Vestaboard.Cloud)
   end
 
   @doc false

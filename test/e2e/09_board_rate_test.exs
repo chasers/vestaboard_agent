@@ -17,7 +17,7 @@ defmodule VestaboardAgent.E2E.BoardRateTest do
 
   @moduletag timeout: 300_000
 
-  alias VestaboardAgent.Client
+  alias VestaboardAgent.Clients.Vestaboard, as: Client
 
   @rows 6
   @cols 22

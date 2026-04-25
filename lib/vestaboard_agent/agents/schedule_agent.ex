@@ -30,7 +30,8 @@ defmodule VestaboardAgent.Agents.ScheduleAgent do
 
   @behaviour VestaboardAgent.Agent
 
-  alias VestaboardAgent.{Dispatcher, IntervalScheduler, LLM, Scheduler, ToolRegistry}
+  alias VestaboardAgent.Clients.Anthropic, as: LLM
+  alias VestaboardAgent.{Dispatcher, IntervalScheduler, Scheduler, ToolRegistry}
 
   @impl true
   def name, do: "schedule"

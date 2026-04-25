@@ -1,7 +1,7 @@
-defmodule VestaboardAgent.Client.CloudTest do
+defmodule VestaboardAgent.Clients.Vestaboard.CloudTest do
   use ExUnit.Case, async: false
 
-  alias VestaboardAgent.Client.Cloud
+  alias VestaboardAgent.Clients.Vestaboard.Cloud
 
   @grid List.duplicate(List.duplicate(0, 22), 6)
 

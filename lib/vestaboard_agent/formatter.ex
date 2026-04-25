@@ -15,7 +15,7 @@ defmodule VestaboardAgent.Formatter do
   first) to give the LLM context for follow-up prompts like "make it bigger".
   """
 
-  alias VestaboardAgent.LLM
+  alias VestaboardAgent.Clients.Anthropic, as: LLM
   alias VestaboardAgent.Renderer
 
   @valid_colors Map.keys(Renderer.color_codes())

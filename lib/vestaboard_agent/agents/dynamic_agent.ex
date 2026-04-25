@@ -17,7 +17,8 @@ defmodule VestaboardAgent.Agents.DynamicAgent do
 
   @behaviour VestaboardAgent.Agent
 
-  alias VestaboardAgent.{LLM, ToolRegistry}
+  alias VestaboardAgent.Clients.Anthropic, as: LLM
+  alias VestaboardAgent.ToolRegistry
 
   @impl true
   def name, do: "dynamic"

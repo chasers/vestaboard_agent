@@ -13,16 +13,19 @@ defmodule VestaboardAgent.Tools.Weather do
 
   @behaviour VestaboardAgent.Tool
 
-  @base_url "https://api.open-meteo.com/v1/forecast"
+  alias VestaboardAgent.Clients.OpenMeteo
 
   @impl true
   def name, do: "weather"
 
   @impl true
   def run(context \\ %{}) do
-    with {:ok, lat, lon} <- location(context),
-         {:ok, data} <- fetch(lat, lon, context) do
-      {:ok, format(data)}
+    with {:ok, lat, lon} <- location(context) do
+      opts = if plug = Map.get(context, :plug), do: [plug: plug], else: []
+      case OpenMeteo.fetch(lat, lon, opts) do
+        {:ok, data} -> {:ok, format(data)}
+        {:error, _} = err -> err
+      end
     end
   end
 
@@ -35,35 +38,6 @@ defmodule VestaboardAgent.Tools.Weather do
       {:ok, lat, lon}
     else
       {:error, :location_required}
-    end
-  end
-
-  defp fetch(lat, lon, context) do
-    req = build_req(context)
-
-    case Req.get(req,
-           url: @base_url,
-           params: [
-             latitude: lat,
-             longitude: lon,
-             current: "temperature_2m,apparent_temperature,weathercode,windspeed_10m",
-             temperature_unit: "fahrenheit",
-             windspeed_unit: "mph",
-             timezone: "auto"
-           ]
-         ) do
-      {:ok, %{status: 200, body: body}} -> {:ok, body}
-      {:ok, %{status: status}} -> {:error, {:http, status}}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp build_req(context) do
-    base = Req.new(retry: false)
-
-    case Map.get(context, :plug) do
-      nil -> base
-      plug -> Req.merge(base, plug: plug)
     end
   end
 

@@ -1,4 +1,4 @@
-defmodule VestaboardAgent.LLM do
+defmodule VestaboardAgent.Clients.Anthropic do
   @moduledoc """
   Generates Lua tool scripts via the Anthropic Messages API.
 
