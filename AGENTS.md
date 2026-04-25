@@ -25,6 +25,7 @@ Never add special cases to `do_display/2` or `VestaboardAgent.display/2` to hand
 | `lib/vestaboard_agent/tools/` | Tool implementations |
 | `lib/vestaboard_agent/agents/` | Agent implementations |
 | `lib/vestaboard_agent/agent/registry.ex` | Routes prompts to agents |
+| `lib/vestaboard_agent/espn_client.ex` | ESPN unofficial scoreboard API client |
 | `lib/vestaboard_agent/sandbox.ex` | `Sandbox` behaviour + dispatch |
 | `lib/vestaboard_agent/sandbox/lua.ex` | Lua sandbox backend |
 | `lib/vestaboard_agent/lua_api.ex` | Elixir bindings exposed to Lua scripts |
@@ -157,6 +158,69 @@ end
 ```
 
 Use `VestaboardAgent.FakeDispatcher` in tests so no real HTTP calls are made.
+
+---
+
+## External API Clients
+
+When a tool needs to call an external HTTP API, put all HTTP and JSON parsing in a dedicated client module rather than inside the tool itself. The tool then delegates to the client and handles only selection and formatting.
+
+```
+lib/vestaboard_agent/espn_client.ex   ← all HTTP, JSON, typed structs
+lib/vestaboard_agent/tools/sports.ex  ← filters, formats, no HTTP
+```
+
+This separation means:
+- The client is independently testable with `Req.Test` stubs.
+- The tool tests never touch HTTP — they stub the client function directly.
+- Swapping the upstream API only requires changing the client.
+
+### Client conventions
+
+- One public function per logical query (e.g. `scoreboard/2`).
+- Return typed maps/structs, not raw JSON.
+- Match `{:ok, %{status: 200, body: body}}` explicitly; all other shapes → `{:error, reason}`.
+- Accept a `plug:` opt for test injection; also check app config for a global plug override.
+
+```elixir
+defp build_req(opts) do
+  base = Req.new(retry: false)
+  plug = Keyword.get(opts, :plug) ||
+         get_in(Application.get_env(:vestaboard_agent, :my_client, []), [:plug])
+  if plug, do: Req.merge(base, plug: plug), else: base
+end
+```
+
+---
+
+## Long-Running Agents with Refresh Loops
+
+An agent that must periodically re-fetch and re-display (e.g. live sports scores) runs a blocking loop inside `handle/2`. The loop uses `Process.send_after(self(), :token, ms)` + `receive` rather than `Process.sleep` so the name `:token` is visible in crash dumps and the process is still interruptible via `Process.exit(pid, :kill)`.
+
+```elixir
+defp refresh_loop(ctx, sports_fn, dispatch_fn, refresh_ms) do
+  Process.send_after(self(), :sports_refresh, refresh_ms)
+
+  receive do
+    :sports_refresh ->
+      case sports_fn.(ctx) do
+        {:ok, %{text: text, live: true}}  -> dispatch_fn.(text); refresh_loop(...)
+        {:ok, %{text: text, live: false}} -> dispatch_fn.(text)   # done
+        {:error, _}                       -> :ok                  # stop silently
+      end
+  end
+end
+```
+
+### Testability
+
+Inject three context keys to avoid real HTTP, real dispatch, and real timing in tests:
+
+| Key | Default | Test value |
+|---|---|---|
+| `:sports_fn` | `&Tools.Sports.run/1` | function returning canned `{:ok, %{...}}` |
+| `:dispatch_fn` | `&Dispatcher.dispatch/1` | function sending `{:dispatched, text}` to test pid |
+| `:refresh_ms` | `60_000` | `0` (fires immediately) |
 
 ---
 

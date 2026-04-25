@@ -7,7 +7,7 @@ test:
 	@mix test
 
 e2e:
-	@set -a && . ./.env && set +a && mix test.e2e
+	@set -a && . ./.env && set +a && mix test.e2e $(if $(T),$(T),)
 
 find:
 	@elixir .scripts/find_vestaboard.exs
