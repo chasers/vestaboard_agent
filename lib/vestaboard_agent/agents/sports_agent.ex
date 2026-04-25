@@ -32,7 +32,7 @@ defmodule VestaboardAgent.Agents.SportsAgent do
 
   @behaviour VestaboardAgent.Agent
 
-  alias VestaboardAgent.{Dispatcher, Tools.Sports}
+  alias VestaboardAgent.{Dispatcher, Formatter, Tools.Sports}
 
   @default_refresh_ms 60_000
 
@@ -228,19 +228,29 @@ defmodule VestaboardAgent.Agents.SportsAgent do
     team = parse_team(prompt)
 
     ctx = Map.merge(context, %{sport: sport, league: league, team: team})
-    dispatch_fn = Map.get(context, :dispatch_fn, &Dispatcher.dispatch/1)
+    dispatch_fn = Map.get(context, :dispatch_fn, &Dispatcher.dispatch/2)
     sports_fn = Map.get(context, :sports_fn, &Sports.run/1)
     refresh_ms = Map.get(context, :refresh_ms, @default_refresh_ms)
 
+    format_fn =
+      Map.get(context, :format_fn, fn text ->
+        Formatter.format(text,
+          llm_opts: Map.get(context, :llm_opts, []),
+          history: Map.get(context, :history, [])
+        )
+      end)
+
     case sports_fn.(ctx) do
       {:ok, %{text: text, live: true}} ->
-        dispatch_fn.(text)
+        {:ok, formatted, render_opts} = format_fn.(text)
+        dispatch_fn.(formatted, render_opts)
         Logger.info("[sports] #{league} game in progress — refreshing every #{refresh_ms}ms")
-        refresh_loop(ctx, sports_fn, dispatch_fn, refresh_ms)
+        refresh_loop(ctx, sports_fn, format_fn, dispatch_fn, refresh_ms)
         {:ok, :done}
 
       {:ok, %{text: text, live: false}} ->
-        dispatch_fn.(text)
+        {:ok, formatted, render_opts} = format_fn.(text)
+        dispatch_fn.(formatted, render_opts)
         {:ok, :done}
 
       {:error, reason} ->
@@ -249,19 +259,21 @@ defmodule VestaboardAgent.Agents.SportsAgent do
     end
   end
 
-  defp refresh_loop(ctx, sports_fn, dispatch_fn, refresh_ms) do
+  defp refresh_loop(ctx, sports_fn, format_fn, dispatch_fn, refresh_ms) do
     Process.send_after(self(), :sports_refresh, refresh_ms)
 
     receive do
       :sports_refresh ->
         case sports_fn.(ctx) do
           {:ok, %{text: text, live: true}} ->
-            dispatch_fn.(text)
+            {:ok, formatted, render_opts} = format_fn.(text)
+            dispatch_fn.(formatted, render_opts)
             Logger.info("[sports] refreshed live score")
-            refresh_loop(ctx, sports_fn, dispatch_fn, refresh_ms)
+            refresh_loop(ctx, sports_fn, format_fn, dispatch_fn, refresh_ms)
 
           {:ok, %{text: text, live: false}} ->
-            dispatch_fn.(text)
+            {:ok, formatted, render_opts} = format_fn.(text)
+            dispatch_fn.(formatted, render_opts)
             Logger.info("[sports] game ended — stopping refresh")
 
           {:error, reason} ->

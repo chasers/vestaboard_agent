@@ -4,7 +4,7 @@ iex:
 	@set -a && . ./.env && set +a && iex -S mix
 
 test:
-	@mix test
+	@MIX_ENV=test mix test
 
 e2e:
 	@set -a && . ./.env && set +a && mix test.e2e $(if $(T),$(T),)
