@@ -1,4 +1,4 @@
-defmodule VestaboardAgent.ESPNClient do
+defmodule VestaboardAgent.Clients.ESPN do
   @moduledoc """
   HTTP client for the ESPN unofficial scoreboard API (no API key required).
 
@@ -7,7 +7,7 @@ defmodule VestaboardAgent.ESPNClient do
 
   ## Test injection
 
-      ESPNClient.scoreboard("football", "nfl", plug: {Req.Test, MyTest})
+      ESPN.scoreboard("football", "nfl", plug: {Req.Test, MyTest})
 
   Configure the plug at the app level to avoid threading it through every call:
 

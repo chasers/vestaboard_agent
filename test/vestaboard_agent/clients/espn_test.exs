@@ -1,7 +1,7 @@
-defmodule VestaboardAgent.ESPNClientTest do
+defmodule VestaboardAgent.Clients.ESPNTest do
   use ExUnit.Case, async: true
 
-  alias VestaboardAgent.ESPNClient
+  alias VestaboardAgent.Clients.ESPN
 
   defp plug, do: {Req.Test, __MODULE__}
 
@@ -48,46 +48,46 @@ defmodule VestaboardAgent.ESPNClientTest do
 
   test "returns a list of games on 200" do
     stub(game_fixture())
-    assert {:ok, [game]} = ESPNClient.scoreboard("football", "nfl", plug: plug())
+    assert {:ok, [game]} = ESPN.scoreboard("football", "nfl", plug: plug())
     assert game.id == "abc123"
   end
 
   test "parses home and away teams" do
     stub(game_fixture())
-    assert {:ok, [game]} = ESPNClient.scoreboard("football", "nfl", plug: plug())
+    assert {:ok, [game]} = ESPN.scoreboard("football", "nfl", plug: plug())
     assert game.home.abbrev == "KC"
     assert game.away.abbrev == "BUF"
   end
 
   test "parses scores as integers" do
     stub(game_fixture())
-    assert {:ok, [game]} = ESPNClient.scoreboard("football", "nfl", plug: plug())
+    assert {:ok, [game]} = ESPN.scoreboard("football", "nfl", plug: plug())
     assert game.home.score == 27
     assert game.away.score == 24
   end
 
   test "parses clock and period" do
     stub(game_fixture())
-    assert {:ok, [game]} = ESPNClient.scoreboard("football", "nfl", plug: plug())
+    assert {:ok, [game]} = ESPN.scoreboard("football", "nfl", plug: plug())
     assert game.clock == "4:32"
     assert game.period == 3
   end
 
   test "STATUS_IN_PROGRESS maps to :in_progress" do
     stub(game_fixture())
-    assert {:ok, [game]} = ESPNClient.scoreboard("football", "nfl", plug: plug())
+    assert {:ok, [game]} = ESPN.scoreboard("football", "nfl", plug: plug())
     assert game.status == :in_progress
   end
 
   test "STATUS_FINAL maps to :final" do
     stub(game_fixture() |> set_status("STATUS_FINAL"))
-    assert {:ok, [game]} = ESPNClient.scoreboard("football", "nfl", plug: plug())
+    assert {:ok, [game]} = ESPN.scoreboard("football", "nfl", plug: plug())
     assert game.status == :final
   end
 
   test "unknown status maps to :scheduled" do
     stub(game_fixture() |> set_status("STATUS_SCHEDULED"))
-    assert {:ok, [game]} = ESPNClient.scoreboard("football", "nfl", plug: plug())
+    assert {:ok, [game]} = ESPN.scoreboard("football", "nfl", plug: plug())
     assert game.status == :scheduled
   end
 
@@ -101,7 +101,7 @@ defmodule VestaboardAgent.ESPNClientTest do
     }
 
     stub(body)
-    assert {:ok, [g1, g2, g3]} = ESPNClient.scoreboard("football", "nfl", plug: plug())
+    assert {:ok, [g1, g2, g3]} = ESPN.scoreboard("football", "nfl", plug: plug())
     assert g1.id == "live"
     assert g2.id == "sched"
     assert g3.id == "final"
@@ -109,12 +109,12 @@ defmodule VestaboardAgent.ESPNClientTest do
 
   test "returns empty list when events is empty" do
     stub(%{"events" => []})
-    assert {:ok, []} = ESPNClient.scoreboard("football", "nfl", plug: plug())
+    assert {:ok, []} = ESPN.scoreboard("football", "nfl", plug: plug())
   end
 
   test "returns {:error, {:http, status}} on non-200" do
     stub_status(404)
-    assert {:error, {:http, 404}} = ESPNClient.scoreboard("football", "nfl", plug: plug())
+    assert {:error, {:http, 404}} = ESPN.scoreboard("football", "nfl", plug: plug())
   end
 
   test "handles missing score gracefully" do
@@ -126,7 +126,7 @@ defmodule VestaboardAgent.ESPNClientTest do
       )
 
     stub(body)
-    assert {:ok, [game]} = ESPNClient.scoreboard("football", "nfl", plug: plug())
+    assert {:ok, [game]} = ESPN.scoreboard("football", "nfl", plug: plug())
     assert game.home.score == nil
   end
 
@@ -137,7 +137,7 @@ defmodule VestaboardAgent.ESPNClientTest do
       Req.Test.json(conn, game_fixture())
     end)
 
-    assert {:ok, _} = ESPNClient.scoreboard("football", "nfl", plug: plug(), dates: "20260426")
+    assert {:ok, _} = ESPN.scoreboard("football", "nfl", plug: plug(), dates: "20260426")
   end
 
   describe "upcoming_game/4" do
@@ -154,13 +154,13 @@ defmodule VestaboardAgent.ESPNClientTest do
         end
       end)
 
-      assert {:ok, game} = ESPNClient.upcoming_game("football", "nfl", "KC", plug: plug())
+      assert {:ok, game} = ESPN.upcoming_game("football", "nfl", "KC", plug: plug())
       assert game.home.abbrev == "KC"
     end
 
     test "returns {:error, :not_found} when team absent throughout lookahead" do
       Req.Test.stub(__MODULE__, fn conn -> Req.Test.json(conn, %{"events" => []}) end)
-      assert {:error, :not_found} = ESPNClient.upcoming_game("football", "nfl", "KC", [plug: plug()], 2)
+      assert {:error, :not_found} = ESPN.upcoming_game("football", "nfl", "KC", [plug: plug()], 2)
     end
 
     test "returns first day that contains the team" do
@@ -177,7 +177,7 @@ defmodule VestaboardAgent.ESPNClientTest do
         end
       end)
 
-      assert {:ok, game} = ESPNClient.upcoming_game("football", "nfl", "KC", [plug: plug()], 3)
+      assert {:ok, game} = ESPN.upcoming_game("football", "nfl", "KC", [plug: plug()], 3)
       assert game.home.abbrev == "KC"
     end
   end

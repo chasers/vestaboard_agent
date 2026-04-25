@@ -1,7 +1,7 @@
-defmodule VestaboardAgent.LLMTest do
+defmodule VestaboardAgent.Clients.AnthropicTest do
   use ExUnit.Case, async: false
 
-  alias VestaboardAgent.LLM
+  alias VestaboardAgent.Clients.Anthropic
 
   @stub_script "return 'hello world'"
 
@@ -22,39 +22,39 @@ defmodule VestaboardAgent.LLMTest do
 
   test "returns {:ok, script} on success" do
     opts = opts_with_stub(fn -> stub_response() end)
-    assert {:ok, @stub_script} = LLM.generate_tool_script("show a greeting", opts)
+    assert {:ok, @stub_script} = Anthropic.generate_tool_script("show a greeting", opts)
   end
 
   test "trims whitespace from the returned script" do
     response = %{"content" => [%{"type" => "text", "text" => "  return 'hi'  \n"}]}
     opts = opts_with_stub(fn -> response end)
-    assert {:ok, "return 'hi'"} = LLM.generate_tool_script("show something", opts)
+    assert {:ok, "return 'hi'"} = Anthropic.generate_tool_script("show something", opts)
   end
 
   test "strips ```lua ... ``` fences from the response" do
     fenced = "```lua\nreturn 'hello'\n```"
     response = %{"content" => [%{"type" => "text", "text" => fenced}]}
     opts = opts_with_stub(fn -> response end)
-    assert {:ok, "return 'hello'"} = LLM.generate_tool_script("task", opts)
+    assert {:ok, "return 'hello'"} = Anthropic.generate_tool_script("task", opts)
   end
 
   test "strips plain ``` fences from the response" do
     fenced = "```\nreturn 'hello'\n```"
     response = %{"content" => [%{"type" => "text", "text" => fenced}]}
     opts = opts_with_stub(fn -> response end)
-    assert {:ok, "return 'hello'"} = LLM.generate_tool_script("task", opts)
+    assert {:ok, "return 'hello'"} = Anthropic.generate_tool_script("task", opts)
   end
 
   test "leaves scripts without fences unchanged" do
     plain = "return 'hello world'"
     response = %{"content" => [%{"type" => "text", "text" => plain}]}
     opts = opts_with_stub(fn -> response end)
-    assert {:ok, ^plain} = LLM.generate_tool_script("task", opts)
+    assert {:ok, ^plain} = Anthropic.generate_tool_script("task", opts)
   end
 
   test "returns http error on non-200 response" do
     opts = [plug: fn conn -> Plug.Conn.send_resp(conn, 401, "unauthorized") end]
-    assert {:error, {:http, 401}} = LLM.generate_tool_script("task", opts)
+    assert {:error, {:http, 401}} = Anthropic.generate_tool_script("task", opts)
   end
 
   test "returns missing_api_key error when no key is configured" do
@@ -69,7 +69,7 @@ defmodule VestaboardAgent.LLMTest do
     Application.put_env(:vestaboard_agent, :llm, api_key: nil)
     System.delete_env("ANTHROPIC_API_KEY")
 
-    assert {:error, :missing_api_key} = LLM.generate_tool_script("task")
+    assert {:error, :missing_api_key} = Anthropic.generate_tool_script("task")
   end
 
   test "reads api_key from app config" do
@@ -79,7 +79,7 @@ defmodule VestaboardAgent.LLMTest do
     Application.put_env(:vestaboard_agent, :llm, api_key: "test-key")
 
     opts = opts_with_stub(fn -> stub_response() end)
-    assert {:ok, _} = LLM.generate_tool_script("task", opts)
+    assert {:ok, _} = Anthropic.generate_tool_script("task", opts)
   end
 
   describe "route_agent/3" do
@@ -90,7 +90,7 @@ defmodule VestaboardAgent.LLMTest do
         %{"content" => [%{"type" => "text", "text" => "greeter"}]}
       end)
 
-      assert {:ok, "greeter"} = LLM.route_agent("say hi", @agents_meta, opts)
+      assert {:ok, "greeter"} = Anthropic.route_agent("say hi", @agents_meta, opts)
     end
 
     test "downcases and trims the returned name" do
@@ -98,7 +98,7 @@ defmodule VestaboardAgent.LLMTest do
         %{"content" => [%{"type" => "text", "text" => "  Greeter  "}]}
       end)
 
-      assert {:ok, "greeter"} = LLM.route_agent("say hi", @agents_meta, opts)
+      assert {:ok, "greeter"} = Anthropic.route_agent("say hi", @agents_meta, opts)
     end
 
     test "returns dynamic when the LLM says dynamic" do
@@ -106,7 +106,7 @@ defmodule VestaboardAgent.LLMTest do
         %{"content" => [%{"type" => "text", "text" => "dynamic"}]}
       end)
 
-      assert {:ok, "dynamic"} = LLM.route_agent("do something odd", @agents_meta, opts)
+      assert {:ok, "dynamic"} = Anthropic.route_agent("do something odd", @agents_meta, opts)
     end
 
     test "returns missing_api_key when no key configured" do
@@ -121,7 +121,7 @@ defmodule VestaboardAgent.LLMTest do
       Application.put_env(:vestaboard_agent, :llm, api_key: nil)
       System.delete_env("ANTHROPIC_API_KEY")
 
-      assert {:error, :missing_api_key} = LLM.route_agent("test", @agents_meta)
+      assert {:error, :missing_api_key} = Anthropic.route_agent("test", @agents_meta)
     end
 
     test "handles agents with no keywords" do
@@ -130,7 +130,7 @@ defmodule VestaboardAgent.LLMTest do
         %{"content" => [%{"type" => "text", "text" => "greeter"}]}
       end)
 
-      assert {:ok, "greeter"} = LLM.route_agent("say hello", agents_meta, opts)
+      assert {:ok, "greeter"} = Anthropic.route_agent("say hello", agents_meta, opts)
     end
 
     test "includes history in routing prompt when provided" do
@@ -148,7 +148,7 @@ defmodule VestaboardAgent.LLMTest do
         end
       ]
 
-      assert {:ok, "clock"} = LLM.route_agent("do that again", agents_meta, opts)
+      assert {:ok, "clock"} = Anthropic.route_agent("do that again", agents_meta, opts)
 
       assert_receive {:prompt, prompt_text}
       assert String.contains?(prompt_text, "show the clock")
@@ -164,7 +164,7 @@ defmodule VestaboardAgent.LLMTest do
       end)
 
       assert {:ok, %{tool: "clock", interval_seconds: 15}} =
-               LLM.parse_schedule("show clock every 15 seconds", @tool_names, opts)
+               Anthropic.parse_schedule("show clock every 15 seconds", @tool_names, opts)
     end
 
     test "parses minute-level interval" do
@@ -173,7 +173,7 @@ defmodule VestaboardAgent.LLMTest do
       end)
 
       assert {:ok, %{tool: "weather", interval_seconds: 300}} =
-               LLM.parse_schedule("show weather every 5 minutes", @tool_names, opts)
+               Anthropic.parse_schedule("show weather every 5 minutes", @tool_names, opts)
     end
 
     test "returns error for invalid JSON response" do
@@ -181,7 +181,7 @@ defmodule VestaboardAgent.LLMTest do
         %{"content" => [%{"type" => "text", "text" => "not json"}]}
       end)
 
-      assert {:error, _} = LLM.parse_schedule("schedule something", @tool_names, opts)
+      assert {:error, _} = Anthropic.parse_schedule("schedule something", @tool_names, opts)
     end
 
     test "returns error when interval_seconds is missing" do
@@ -190,7 +190,7 @@ defmodule VestaboardAgent.LLMTest do
       end)
 
       assert {:error, :invalid_schedule_response} =
-               LLM.parse_schedule("schedule clock", @tool_names, opts)
+               Anthropic.parse_schedule("schedule clock", @tool_names, opts)
     end
 
     test "returns error when interval_seconds is zero or negative" do
@@ -199,7 +199,7 @@ defmodule VestaboardAgent.LLMTest do
       end)
 
       assert {:error, :invalid_schedule_response} =
-               LLM.parse_schedule("schedule clock", @tool_names, opts)
+               Anthropic.parse_schedule("schedule clock", @tool_names, opts)
     end
   end
 end

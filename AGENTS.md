@@ -25,7 +25,7 @@ Never add special cases to `do_display/2` or `VestaboardAgent.display/2` to hand
 | `lib/vestaboard_agent/tools/` | Tool implementations |
 | `lib/vestaboard_agent/agents/` | Agent implementations |
 | `lib/vestaboard_agent/agent/registry.ex` | Routes prompts to agents |
-| `lib/vestaboard_agent/espn_client.ex` | ESPN unofficial scoreboard API client |
+| `lib/vestaboard_agent/clients/` | All HTTP clients (ESPN, Anthropic, OpenMeteo, Vestaboard) |
 | `lib/vestaboard_agent/sandbox.ex` | `Sandbox` behaviour + dispatch |
 | `lib/vestaboard_agent/sandbox/lua.ex` | Lua sandbox backend |
 | `lib/vestaboard_agent/lua_api.ex` | Elixir bindings exposed to Lua scripts |
@@ -166,7 +166,7 @@ Use `VestaboardAgent.FakeDispatcher` in tests so no real HTTP calls are made.
 When a tool needs to call an external HTTP API, put all HTTP and JSON parsing in a dedicated client module rather than inside the tool itself. The tool then delegates to the client and handles only selection and formatting.
 
 ```
-lib/vestaboard_agent/espn_client.ex   ← all HTTP, JSON, typed structs
+lib/vestaboard_agent/clients/espn.ex  ← all HTTP, JSON, typed structs
 lib/vestaboard_agent/tools/sports.ex  ← filters, formats, no HTTP
 ```
 

@@ -7,7 +7,7 @@ base_url =
   end
 
 config :vestaboard_agent, :client,
-  backend: VestaboardAgent.Client.Local,
+  backend: VestaboardAgent.Clients.Vestaboard.Local,
   api_key: System.get_env("VESTABOARD_LOCAL_API_KEY"),
   base_url: base_url
 

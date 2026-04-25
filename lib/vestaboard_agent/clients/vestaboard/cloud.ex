@@ -1,4 +1,4 @@
-defmodule VestaboardAgent.Client.Cloud do
+defmodule VestaboardAgent.Clients.Vestaboard.Cloud do
   @moduledoc """
   Vestaboard cloud API client.
 
@@ -8,11 +8,11 @@ defmodule VestaboardAgent.Client.Cloud do
   Configure via:
 
       config :vestaboard_agent, :client,
-        backend: VestaboardAgent.Client.Cloud,
+        backend: VestaboardAgent.Clients.Vestaboard.Cloud,
         token: System.get_env("VESTABOARD_TOKEN")
   """
 
-  @behaviour VestaboardAgent.Client
+  @behaviour VestaboardAgent.Clients.Vestaboard
 
   @base_url "https://cloud.vestaboard.com"
   @vbml_url "https://vbml.vestaboard.com"
@@ -91,14 +91,14 @@ defmodule VestaboardAgent.Client.Cloud do
   end
 
   defp merge_test_plug(req) do
-    case VestaboardAgent.Client.config(:plug) do
+    case VestaboardAgent.Clients.Vestaboard.config(:plug) do
       nil -> req
       plug -> Req.merge(req, plug: plug)
     end
   end
 
   defp token do
-    VestaboardAgent.Client.config(:token, "")
+    VestaboardAgent.Clients.Vestaboard.config(:token, "")
   end
 
   defp extract_characters(%{"currentMessage" => %{"text" => chars}}), do: chars

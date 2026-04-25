@@ -13,7 +13,8 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
 
   @behaviour VestaboardAgent.Agent
 
-  alias VestaboardAgent.{Dispatcher, LLM, Snake.Game}
+  alias VestaboardAgent.Clients.Anthropic, as: LLM
+  alias VestaboardAgent.{Dispatcher, Snake.Game}
 
   @lock_key :snake_running
 
