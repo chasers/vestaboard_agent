@@ -47,8 +47,12 @@ defmodule VestaboardAgent.IntervalScheduler do
 
   def handle_call({:cancel, name}, _from, state) do
     case Map.get(state, name) do
-      nil -> {:reply, :ok, state}
-      %{tref: tref} -> :timer.cancel(tref); {:reply, :ok, Map.delete(state, name)}
+      nil ->
+        {:reply, :ok, state}
+
+      %{tref: tref} ->
+        :timer.cancel(tref)
+        {:reply, :ok, Map.delete(state, name)}
     end
   end
 

@@ -31,11 +31,12 @@ defmodule VestaboardAgent.Agents.WeatherAgentTest do
       })
     end)
 
-    assert {:ok, text} = WeatherAgent.handle("what's the weather?", %{
-      latitude: 37.7749,
-      longitude: -122.4194,
-      plug: plug
-    })
+    assert {:ok, text} =
+             WeatherAgent.handle("what's the weather?", %{
+               latitude: 37.7749,
+               longitude: -122.4194,
+               plug: plug
+             })
 
     assert is_binary(text)
     assert text =~ "72"

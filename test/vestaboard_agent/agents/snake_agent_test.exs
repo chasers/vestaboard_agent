@@ -29,12 +29,13 @@ defmodule VestaboardAgent.Agents.SnakeAgentTest do
         Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "RIGHT"}]})
       end
 
-      assert {:ok, :done} = SnakeAgent.handle("play snake", %{
-        llm_opts: [plug: plug],
-        dispatch_fn: stub_dispatch(),
-        max_moves: 3,
-        min_frame_ms: 0
-      })
+      assert {:ok, :done} =
+               SnakeAgent.handle("play snake", %{
+                 llm_opts: [plug: plug],
+                 dispatch_fn: stub_dispatch(),
+                 max_moves: 3,
+                 min_frame_ms: 0
+               })
     end
 
     test "returns {:ok, :done} after LLM drives snake into a wall" do
@@ -42,12 +43,13 @@ defmodule VestaboardAgent.Agents.SnakeAgentTest do
         Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "UP"}]})
       end
 
-      assert {:ok, :done} = SnakeAgent.handle("play snake", %{
-        llm_opts: [plug: plug],
-        dispatch_fn: stub_dispatch(),
-        max_moves: 5,
-        min_frame_ms: 0
-      })
+      assert {:ok, :done} =
+               SnakeAgent.handle("play snake", %{
+                 llm_opts: [plug: plug],
+                 dispatch_fn: stub_dispatch(),
+                 max_moves: 5,
+                 min_frame_ms: 0
+               })
     end
 
     test "dispatches a grid on each move and a final game-over grid" do

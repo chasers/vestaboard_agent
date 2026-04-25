@@ -79,7 +79,11 @@ defmodule VestaboardAgent.Clients.ESPN do
 
   defp build_req(opts) do
     base = Req.new(retry: false)
-    plug = Keyword.get(opts, :plug) || get_in(Application.get_env(:vestaboard_agent, :espn_client, []), [:plug])
+
+    plug =
+      Keyword.get(opts, :plug) ||
+        get_in(Application.get_env(:vestaboard_agent, :espn_client, []), [:plug])
+
     if plug, do: Req.merge(base, plug: plug), else: base
   end
 

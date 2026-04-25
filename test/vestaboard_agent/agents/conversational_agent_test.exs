@@ -24,7 +24,9 @@ defmodule VestaboardAgent.Agents.ConversationalAgentTest do
       plug = {Req.Test, ConversationalAgentTest}
 
       Req.Test.stub(ConversationalAgentTest, fn conn ->
-        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "All is one.\nBe present."}]})
+        Req.Test.json(conn, %{
+          "content" => [%{"type" => "text", "text" => "All is one.\nBe present."}]
+        })
       end)
 
       assert {:ok, text} = ConversationalAgent.handle("who is god", %{llm_opts: [plug: plug]})

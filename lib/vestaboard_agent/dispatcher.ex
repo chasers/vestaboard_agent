@@ -79,12 +79,16 @@ defmodule VestaboardAgent.Dispatcher do
 
   @impl true
   def handle_cast({:dispatch_async, message, opts, deadline}, state) do
-    {result, grid} = if expired?(deadline), do: {{:error, :expired}, nil}, else: do_dispatch(message, opts)
+    {result, grid} =
+      if expired?(deadline), do: {{:error, :expired}, nil}, else: do_dispatch(message, opts)
+
     {:noreply, maybe_update_board(state, result, grid)}
   end
 
   def handle_cast({:dispatch_tool_async, tool, context, deadline}, state) do
-    {result, grid} = if expired?(deadline), do: {{:error, :expired}, nil}, else: do_dispatch_tool(tool, context)
+    {result, grid} =
+      if expired?(deadline), do: {{:error, :expired}, nil}, else: do_dispatch_tool(tool, context)
+
     {:noreply, maybe_update_board(state, result, grid)}
   end
 

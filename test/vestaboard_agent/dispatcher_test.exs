@@ -123,6 +123,7 @@ defmodule VestaboardAgent.DispatcherTest do
 
     test "drops the message when TTL has already expired" do
       parent = self()
+
       stub_req(fn conn ->
         send(parent, :http_called)
         Req.Test.json(conn, %{"id" => "should-not-happen"})

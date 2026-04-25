@@ -48,6 +48,7 @@ defmodule VestaboardAgent.ToolRegistryTest do
 
     test "rejects markdown-fenced scripts that were not stripped", %{registry: reg} do
       fenced = "```lua\nreturn 'oops'\n```"
+
       assert {:error, "Failed to compile Lua!" <> _} =
                GenServer.call(reg, {:register_script, :bad_fenced, fenced})
     end

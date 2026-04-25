@@ -5,7 +5,11 @@ defmodule VestaboardAgent.Agents.SportsAgentTest do
 
   defp capture_dispatches do
     parent = self()
-    fn text, _render_opts -> send(parent, {:dispatched, text}); {:ok, %{}} end
+
+    fn text, _render_opts ->
+      send(parent, {:dispatched, text})
+      {:ok, %{}}
+    end
   end
 
   defp sports_returning(results) do

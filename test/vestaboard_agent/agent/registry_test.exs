@@ -52,6 +52,38 @@ defmodule VestaboardAgent.Agent.RegistryTest do
     end
   end
 
+  describe "resolve/2" do
+    test "returns the matched agent module by keyword" do
+      assert {:ok, VestaboardAgent.Agents.Greeter} = Registry.resolve("say hello")
+    end
+
+    test "returns {:error, :no_match} when no keyword match and no API key" do
+      assert {:error, :no_match} = Registry.resolve("xyzzy plugh")
+    end
+
+    test "returns agent module via LLM routing when keyword fails" do
+      Application.put_env(:vestaboard_agent, :llm, api_key: "test-key")
+
+      llm_stub = fn conn ->
+        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "greeter"}]})
+      end
+
+      assert {:ok, VestaboardAgent.Agents.Greeter} =
+               Registry.resolve("something like a greeting", %{llm_opts: [plug: llm_stub]})
+    end
+
+    test "falls back to DynamicAgent when LLM returns an unknown name" do
+      Application.put_env(:vestaboard_agent, :llm, api_key: "test-key")
+
+      llm_stub = fn conn ->
+        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "no_such_agent"}]})
+      end
+
+      assert {:ok, VestaboardAgent.Agents.DynamicAgent} =
+               Registry.resolve("xyzzy completely unknown", %{llm_opts: [plug: llm_stub]})
+    end
+  end
+
   describe "handle/2 LLM fallback" do
     test "returns {:error, :no_match} when no keyword match and no API key" do
       assert {:error, :no_match} = Registry.handle("xyzzy plugh")
@@ -64,9 +96,10 @@ defmodule VestaboardAgent.Agent.RegistryTest do
         Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "greeter"}]})
       end
 
-      result = Registry.handle("something that smells like a greeting", %{
-        llm_opts: [plug: llm_stub]
-      })
+      result =
+        Registry.handle("something that smells like a greeting", %{
+          llm_opts: [plug: llm_stub]
+        })
 
       assert {:ok, text} = result
       assert is_binary(text)

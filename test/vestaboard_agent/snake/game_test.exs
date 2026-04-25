@@ -13,10 +13,12 @@ defmodule VestaboardAgent.Snake.GameTest do
   # Assert every snake cell has at least one adjacent snake neighbor (connected body).
   defp assert_connected(snake) do
     set = MapSet.new(snake)
+
     Enum.each(snake, fn {r, c} ->
       neighbors = [{r - 1, c}, {r + 1, c}, {r, c - 1}, {r, c + 1}]
+
       assert Enum.any?(neighbors, &MapSet.member?(set, &1)),
-        "Snake cell #{inspect({r, c})} has no adjacent neighbor — gap in body.\nSnake: #{inspect(snake)}"
+             "Snake cell #{inspect({r, c})} has no adjacent neighbor — gap in body.\nSnake: #{inspect(snake)}"
     end)
   end
 
@@ -93,8 +95,9 @@ defmodule VestaboardAgent.Snake.GameTest do
       game = no_food(Game.new())
       old_tail = List.last(game.snake)
       assert {:ok, new_game} = Game.move(game, :right)
+
       refute old_tail in new_game.snake,
-        "Tail #{inspect(old_tail)} should have been dropped but is still in snake"
+             "Tail #{inspect(old_tail)} should have been dropped but is still in snake"
     end
 
     test "body cells shift forward: each cell occupies the previous cell's position" do
@@ -106,7 +109,8 @@ defmodule VestaboardAgent.Snake.GameTest do
       assert hd(new_body) == head
       # Every subsequent body cell slides one forward.
       assert Enum.drop(new_body, 1) == Enum.drop(old_body, -1)
-      _ = new_head  # just ensure it compiles
+      # just ensure it compiles
+      _ = new_head
     end
 
     test "body remains connected after a straight move" do
@@ -173,8 +177,9 @@ defmodule VestaboardAgent.Snake.GameTest do
       old_tail = List.last(game.snake)
       game = %{game | food: {r, c + 1}}
       assert {:ok, new_game} = Game.move(game, :right)
+
       assert old_tail in new_game.snake,
-        "Tail should be retained on growth but #{inspect(old_tail)} is missing"
+             "Tail should be retained on growth but #{inspect(old_tail)} is missing"
     end
 
     test "new food is placed on a free cell after eating" do
@@ -182,8 +187,9 @@ defmodule VestaboardAgent.Snake.GameTest do
       [{r, c} | _] = game.snake
       game = %{game | food: {r, c + 1}}
       assert {:ok, new_game} = Game.move(game, :right)
+
       assert new_game.food not in new_game.snake,
-        "New food #{inspect(new_game.food)} landed on the snake"
+             "New food #{inspect(new_game.food)} landed on the snake"
     end
 
     test "body remains connected after eating food" do
@@ -247,10 +253,13 @@ defmodule VestaboardAgent.Snake.GameTest do
     test "self collision kills the snake" do
       # U-shape: head at {2,3} heading up, body wraps so {2,4} is in body.
       # Moving right steps onto {2,4} which is occupied.
-      game = no_food(%{Game.new() |
-        snake: [{2, 3}, {3, 3}, {3, 4}, {3, 5}, {2, 5}, {2, 4}],
-        direction: :up
-      })
+      game =
+        no_food(%{
+          Game.new()
+          | snake: [{2, 3}, {3, 3}, {3, 4}, {3, 5}, {2, 5}, {2, 4}],
+            direction: :up
+        })
+
       assert {:error, :dead} = Game.move(game, :right)
     end
 
@@ -280,10 +289,9 @@ defmodule VestaboardAgent.Snake.GameTest do
     test "excludes moves that step into the body" do
       # Snake heading right at {2,4}; body below at {3,5} — :down would land on body.
       # Build a snake where moving down from head hits body.
-      game = no_food(%{Game.new() |
-        snake: [{2, 4}, {2, 3}, {3, 3}, {3, 4}, {3, 5}],
-        direction: :right
-      })
+      game =
+        no_food(%{Game.new() | snake: [{2, 4}, {2, 3}, {3, 3}, {3, 4}, {3, 5}], direction: :right})
+
       refute :down in Game.safe_moves(game)
     end
 
@@ -329,9 +337,10 @@ defmodule VestaboardAgent.Snake.GameTest do
       game = Game.new()
       [_ | body] = game.snake
       grid = Game.to_grid(game)
+
       Enum.each(body, fn pos ->
         assert grid_value(grid, pos) == 67,
-          "Body cell #{inspect(pos)} expected 67 got #{grid_value(grid, pos)}"
+               "Body cell #{inspect(pos)} expected 67 got #{grid_value(grid, pos)}"
       end)
     end
 
@@ -344,11 +353,12 @@ defmodule VestaboardAgent.Snake.GameTest do
       game = Game.new()
       occupied = MapSet.new([hd(game.snake) | tl(game.snake)] ++ [game.food])
       grid = Game.to_grid(game)
+
       for {row, r} <- Enum.with_index(grid),
           {val, c} <- Enum.with_index(row),
           not MapSet.member?(occupied, {r, c}) do
         assert val == 0,
-          "Cell #{inspect({r, c})} expected 0 (blank) got #{val}"
+               "Cell #{inspect({r, c})} expected 0 (blank) got #{val}"
       end
     end
 
@@ -356,11 +366,13 @@ defmodule VestaboardAgent.Snake.GameTest do
       game = Game.new()
       [_ | body] = game.snake
       grid = Game.to_grid(game)
+
       body_in_grid =
         for {row, r} <- Enum.with_index(grid),
             {val, c} <- Enum.with_index(row),
             val == 67,
             do: {r, c}
+
       assert Enum.sort(body_in_grid) == Enum.sort(body)
     end
   end
@@ -407,6 +419,7 @@ defmodule VestaboardAgent.Snake.GameTest do
     test "H position matches game head position" do
       game = Game.new()
       {hr, hc} = hd(game.snake)
+
       board_rows =
         game
         |> Game.to_ascii()

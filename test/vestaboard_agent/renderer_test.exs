@@ -121,9 +121,10 @@ defmodule VestaboardAgent.RendererTest do
       color = 67
       {:ok, [_top | rest]} = Renderer.render("hi", border: "blue")
       content_rows = Enum.drop(rest, -1)
+
       assert Enum.all?(content_rows, fn row ->
-        hd(row) == color and List.last(row) == color
-      end)
+               hd(row) == color and List.last(row) == color
+             end)
     end
 
     test "accepts raw integer color codes" do

@@ -8,6 +8,10 @@ defmodule VestaboardAgent.AgentServer do
     :cancelled → Task was shut down by cancel/1
     {:error, reason} → Task exited abnormally
 
+  Pass `awaiter: pid` in opts to receive `{:agent_result, server_pid, result}`
+  when the task completes (success or error). The awaiter also receives a
+  `{:DOWN, ref, ...}` message via its monitor if the server is killed externally.
+
   Start via `VestaboardAgent.AgentSupervisor.run/3` rather than directly.
   """
 
@@ -34,19 +38,22 @@ defmodule VestaboardAgent.AgentServer do
     agent = Keyword.fetch!(opts, :agent)
     prompt = Keyword.fetch!(opts, :prompt)
     context = Keyword.get(opts, :context, %{})
+    awaiter = Keyword.get(opts, :awaiter)
 
     task = Task.async(fn -> agent.handle(prompt, context) end)
 
-    {:ok, %{task: task, status: :running, result: nil}}
+    {:ok, %{task: task, status: :running, result: nil, awaiter: awaiter}}
   end
 
   @impl true
   def handle_info({ref, result}, %{task: %Task{ref: ref}} = state) do
     Process.demonitor(ref, [:flush])
+    notify_awaiter(state.awaiter, self(), result)
     {:noreply, %{state | task: nil, status: :done, result: result}}
   end
 
   def handle_info({:DOWN, ref, :process, _pid, reason}, %{task: %Task{ref: ref}} = state) do
+    notify_awaiter(state.awaiter, self(), {:error, {:agent_crash, reason}})
     {:noreply, %{state | task: nil, status: {:error, reason}}}
   end
 
@@ -63,4 +70,9 @@ defmodule VestaboardAgent.AgentServer do
     Task.shutdown(task, :brutal_kill)
     {:reply, :ok, %{state | task: nil, status: :cancelled}}
   end
+
+  # --- Private ---
+
+  defp notify_awaiter(nil, _server, _result), do: :ok
+  defp notify_awaiter(awaiter, server, result), do: send(awaiter, {:agent_result, server, result})
 end

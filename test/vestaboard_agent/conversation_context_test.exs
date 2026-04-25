@@ -14,7 +14,7 @@ defmodule VestaboardAgent.ConversationContextTest do
   end
 
   test "push/3 adds an entry" do
-    ConversationContext.push("hello world", "HELLO WORLD", [border: "blue"])
+    ConversationContext.push("hello world", "HELLO WORLD", border: "blue")
     # cast is async — give GenServer a moment to process
     :sys.get_state(ConversationContext)
 
@@ -26,7 +26,7 @@ defmodule VestaboardAgent.ConversationContextTest do
 
   test "history returns newest entry first" do
     ConversationContext.push("first", "FIRST", [])
-    ConversationContext.push("second", "SECOND", [border: "red"])
+    ConversationContext.push("second", "SECOND", border: "red")
     :sys.get_state(ConversationContext)
 
     [head | _] = ConversationContext.history()

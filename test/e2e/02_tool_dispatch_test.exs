@@ -12,6 +12,7 @@ defmodule VestaboardAgent.E2E.ToolDispatchTest do
       {:ok, _} = Dispatcher.dispatch_tool(Clock)
       board = Dispatcher.last_board()
       assert board != nil, "last_board/0 returned nil after Clock dispatch"
+
       assert String.match?(board.text, ~r/\d+:\d+/),
              "Expected time pattern in: #{inspect(board.text)}"
     end
@@ -31,6 +32,7 @@ defmodule VestaboardAgent.E2E.ToolDispatchTest do
       {:ok, _} = Dispatcher.dispatch_tool(Weather)
       board = Dispatcher.last_board()
       lines = board.text |> String.split("\n") |> Enum.reject(&(&1 == ""))
+
       assert length(lines) <= 6,
              "Weather output exceeded 6 rows: #{inspect(lines)}"
     end
@@ -81,6 +83,7 @@ defmodule VestaboardAgent.E2E.ToolDispatchTest do
       {:ok, text} = ToolRegistry.run(:e2e_lua_test)
       {:ok, _} = Dispatcher.dispatch(text)
       board = Dispatcher.last_board()
+
       assert String.contains?(board.text, "LUA"),
              "Expected 'LUA' in decoded text, got: #{inspect(board.text)}"
     end

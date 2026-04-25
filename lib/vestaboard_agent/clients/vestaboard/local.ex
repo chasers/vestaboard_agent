@@ -42,6 +42,7 @@ defmodule VestaboardAgent.Clients.Vestaboard.Local do
 
   defp parse_read_body(body) when is_list(body), do: {:ok, body}
   defp parse_read_body(%{"message" => grid}) when is_list(grid), do: {:ok, grid}
+
   defp parse_read_body(body) when is_binary(body) do
     case Jason.decode(body) do
       {:ok, grid} when is_list(grid) -> {:ok, grid}
@@ -49,6 +50,7 @@ defmodule VestaboardAgent.Clients.Vestaboard.Local do
       _ -> {:ok, body}
     end
   end
+
   defp parse_read_body(body), do: {:ok, body}
 
   @impl true
@@ -63,7 +65,11 @@ defmodule VestaboardAgent.Clients.Vestaboard.Local do
 
       {:ok, %{status: 429}} when attempt < @max_retries ->
         wait = backoff_ms(attempt)
-        Logger.warning("Vestaboard 429 rate-limited — retry #{attempt + 1}/#{@max_retries} in #{wait}ms")
+
+        Logger.warning(
+          "Vestaboard 429 rate-limited — retry #{attempt + 1}/#{@max_retries} in #{wait}ms"
+        )
+
         Process.sleep(wait)
         do_write(chars, attempt + 1)
 

@@ -14,6 +14,7 @@ defmodule VestaboardAgent.AgentServerTest do
     @behaviour VestaboardAgent.Agent
     def name, do: "slow"
     def keywords, do: ["slow"]
+
     def handle(_prompt, _context) do
       Process.sleep(10_000)
       {:ok, :done}
@@ -61,5 +62,20 @@ defmodule VestaboardAgent.AgentServerTest do
     assert {:done, _} = AgentServer.status(pid)
     assert :ok = AgentServer.cancel(pid)
     assert {:done, _} = AgentServer.status(pid)
+  end
+
+  describe "awaiter notification" do
+    test "notifies awaiter with result when task completes" do
+      pid =
+        start_supervised!({AgentServer, [agent: FastAgent, prompt: "test", awaiter: self()]})
+
+      assert_receive {:agent_result, ^pid, {:ok, :done}}, 500
+    end
+
+    test "no message sent when no awaiter is set" do
+      _pid = start_server(FastAgent)
+      Process.sleep(100)
+      refute_received {:agent_result, _, _}
+    end
   end
 end

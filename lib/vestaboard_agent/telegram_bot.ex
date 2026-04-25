@@ -57,7 +57,10 @@ defmodule VestaboardAgent.TelegramBot do
   defp fetch_updates(%{token: token, offset: offset} = state) do
     url = "#{@base_url}/bot#{token}/getUpdates"
 
-    case Req.get(url, params: [offset: offset, timeout: @poll_timeout], receive_timeout: (@poll_timeout + 5) * 1_000) do
+    case Req.get(url,
+           params: [offset: offset, timeout: @poll_timeout],
+           receive_timeout: (@poll_timeout + 5) * 1_000
+         ) do
       {:ok, %{status: 200, body: %{"ok" => true, "result" => updates}}} ->
         new_offset = process_updates(updates, state)
         %{state | offset: new_offset}
@@ -114,6 +117,7 @@ defmodule VestaboardAgent.TelegramBot do
 
   defp handle_message(chat_id, text, state) do
     token = state.token
+
     Task.start(fn ->
       t0 = System.monotonic_time(:millisecond)
       result = VestaboardAgent.display(text)

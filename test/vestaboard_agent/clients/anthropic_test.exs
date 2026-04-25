@@ -86,25 +86,28 @@ defmodule VestaboardAgent.Clients.AnthropicTest do
     @agents_meta [{"greeter", ["hello", "greet"]}, {"clock", ["time", "clock"]}]
 
     test "returns the agent name from the LLM response" do
-      opts = opts_with_stub(fn ->
-        %{"content" => [%{"type" => "text", "text" => "greeter"}]}
-      end)
+      opts =
+        opts_with_stub(fn ->
+          %{"content" => [%{"type" => "text", "text" => "greeter"}]}
+        end)
 
       assert {:ok, "greeter"} = Anthropic.route_agent("say hi", @agents_meta, opts)
     end
 
     test "downcases and trims the returned name" do
-      opts = opts_with_stub(fn ->
-        %{"content" => [%{"type" => "text", "text" => "  Greeter  "}]}
-      end)
+      opts =
+        opts_with_stub(fn ->
+          %{"content" => [%{"type" => "text", "text" => "  Greeter  "}]}
+        end)
 
       assert {:ok, "greeter"} = Anthropic.route_agent("say hi", @agents_meta, opts)
     end
 
     test "returns dynamic when the LLM says dynamic" do
-      opts = opts_with_stub(fn ->
-        %{"content" => [%{"type" => "text", "text" => "dynamic"}]}
-      end)
+      opts =
+        opts_with_stub(fn ->
+          %{"content" => [%{"type" => "text", "text" => "dynamic"}]}
+        end)
 
       assert {:ok, "dynamic"} = Anthropic.route_agent("do something odd", @agents_meta, opts)
     end
@@ -126,9 +129,11 @@ defmodule VestaboardAgent.Clients.AnthropicTest do
 
     test "handles agents with no keywords" do
       agents_meta = [{"dynamic", []}, {"greeter", ["hello"]}]
-      opts = opts_with_stub(fn ->
-        %{"content" => [%{"type" => "text", "text" => "greeter"}]}
-      end)
+
+      opts =
+        opts_with_stub(fn ->
+          %{"content" => [%{"type" => "text", "text" => "greeter"}]}
+        end)
 
       assert {:ok, "greeter"} = Anthropic.route_agent("say hello", agents_meta, opts)
     end
@@ -159,44 +164,61 @@ defmodule VestaboardAgent.Clients.AnthropicTest do
     @tool_names ["clock", "weather", "quote"]
 
     test "parses a valid schedule response" do
-      opts = opts_with_stub(fn ->
-        %{"content" => [%{"type" => "text", "text" => ~s({"tool":"clock","interval_seconds":15})}]}
-      end)
+      opts =
+        opts_with_stub(fn ->
+          %{
+            "content" => [
+              %{"type" => "text", "text" => ~s({"tool":"clock","interval_seconds":15})}
+            ]
+          }
+        end)
 
       assert {:ok, %{tool: "clock", interval_seconds: 15}} =
                Anthropic.parse_schedule("show clock every 15 seconds", @tool_names, opts)
     end
 
     test "parses minute-level interval" do
-      opts = opts_with_stub(fn ->
-        %{"content" => [%{"type" => "text", "text" => ~s({"tool":"weather","interval_seconds":300})}]}
-      end)
+      opts =
+        opts_with_stub(fn ->
+          %{
+            "content" => [
+              %{"type" => "text", "text" => ~s({"tool":"weather","interval_seconds":300})}
+            ]
+          }
+        end)
 
       assert {:ok, %{tool: "weather", interval_seconds: 300}} =
                Anthropic.parse_schedule("show weather every 5 minutes", @tool_names, opts)
     end
 
     test "returns error for invalid JSON response" do
-      opts = opts_with_stub(fn ->
-        %{"content" => [%{"type" => "text", "text" => "not json"}]}
-      end)
+      opts =
+        opts_with_stub(fn ->
+          %{"content" => [%{"type" => "text", "text" => "not json"}]}
+        end)
 
       assert {:error, _} = Anthropic.parse_schedule("schedule something", @tool_names, opts)
     end
 
     test "returns error when interval_seconds is missing" do
-      opts = opts_with_stub(fn ->
-        %{"content" => [%{"type" => "text", "text" => ~s({"tool":"clock"})}]}
-      end)
+      opts =
+        opts_with_stub(fn ->
+          %{"content" => [%{"type" => "text", "text" => ~s({"tool":"clock"})}]}
+        end)
 
       assert {:error, :invalid_schedule_response} =
                Anthropic.parse_schedule("schedule clock", @tool_names, opts)
     end
 
     test "returns error when interval_seconds is zero or negative" do
-      opts = opts_with_stub(fn ->
-        %{"content" => [%{"type" => "text", "text" => ~s({"tool":"clock","interval_seconds":0})}]}
-      end)
+      opts =
+        opts_with_stub(fn ->
+          %{
+            "content" => [
+              %{"type" => "text", "text" => ~s({"tool":"clock","interval_seconds":0})}
+            ]
+          }
+        end)
 
       assert {:error, :invalid_schedule_response} =
                Anthropic.parse_schedule("schedule clock", @tool_names, opts)

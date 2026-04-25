@@ -36,7 +36,10 @@ defmodule VestaboardAgent.Agents.DynamicAgent do
     case ToolRegistry.get(tool_name) do
       {:ok, _} ->
         result = ToolRegistry.run(tool_name, context)
-        if good_output?(prompt, result, llm_opts), do: result, else: generate_and_run(tool_name, prompt, context, llm_opts)
+
+        if good_output?(prompt, result, llm_opts),
+          do: result,
+          else: generate_and_run(tool_name, prompt, context, llm_opts)
 
       {:error, :not_found} ->
         generate_and_run(tool_name, prompt, context, llm_opts)
@@ -64,8 +67,11 @@ defmodule VestaboardAgent.Agents.DynamicAgent do
       result
     else
       case LLM.regenerate_tool_script(prompt, script, result, llm_opts) do
-        {:ok, new_script} -> retry_loop(tool_name, prompt, context, llm_opts, new_script, deadline)
-        {:error, _} -> result
+        {:ok, new_script} ->
+          retry_loop(tool_name, prompt, context, llm_opts, new_script, deadline)
+
+        {:error, _} ->
+          result
       end
     end
   end
@@ -79,7 +85,8 @@ defmodule VestaboardAgent.Agents.DynamicAgent do
     case LLM.evaluate_output(prompt, text, llm_opts) do
       {:ok, :good} -> true
       {:ok, :bad} -> false
-      {:error, _} -> true  # can't evaluate — accept the output as-is
+      # can't evaluate — accept the output as-is
+      {:error, _} -> true
     end
   end
 
