@@ -9,7 +9,9 @@ Update this file whenever something new is learned.
 
 - **Tests are required for every new module.** Every new `.ex` file needs a matching `_test.exs` mirroring the `lib/` path. Every public function needs at least one happy-path test. Run `mix test` after writing code, not just at the end.
 
-- **Keep PLAN.md current.** Mark items ✅ when done. Add new planned work to the relevant phase *before* starting it. Commit PLAN.md alongside related code or separately if plan-only.
+- **Always run `mix format` before committing.** CI enforces it and will fail otherwise.
+
+- **Keep PLAN.md current.** Mark items ✅ when done. Add new planned work to the relevant phase _before_ starting it. Commit PLAN.md alongside related code or separately if plan-only.
 
 - **Detailed plans go in `.plans/`.** Use the naming convention `YYYY-MM-DD_NN_<slug>.md` (zero-padded daily index). Link from the `| Plan | File |` table at the top of PLAN.md. Never write multi-step breakdowns inline in PLAN.md itself.
 
@@ -37,6 +39,6 @@ Update this file whenever something new is learned.
 
 ## Active Branches
 
-| Branch | Purpose |
-|---|---|
+| Branch                          | Purpose                                                      |
+| ------------------------------- | ------------------------------------------------------------ |
 | `phase/16-routing-improvements` | Phase 16 — routing confidence, eval dataset, trace & explain |
