@@ -149,7 +149,10 @@ defmodule VestaboardAgent.Clients.AnthropicTest do
     end
 
     test "handles agents with no keywords" do
-      agents_meta = [{"dynamic", "Fetch live data or run custom tools", []}, {"greeter", "Show a greeting", ["hello"]}]
+      agents_meta = [
+        {"dynamic", "Fetch live data or run custom tools", []},
+        {"greeter", "Show a greeting", ["hello"]}
+      ]
 
       opts =
         opts_with_stub(fn ->
@@ -161,7 +164,11 @@ defmodule VestaboardAgent.Clients.AnthropicTest do
 
     test "includes history in routing prompt when provided" do
       parent = self()
-      agents_meta = [{"clock", "Show the current time", ["time"]}, {"weather", "Show current weather", ["weather"]}]
+
+      agents_meta = [
+        {"clock", "Show the current time", ["time"]},
+        {"weather", "Show current weather", ["weather"]}
+      ]
 
       opts = [
         history: [%{prompt: "show the clock", text: "12:34 PM", render_opts: []}],

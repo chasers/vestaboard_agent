@@ -21,7 +21,8 @@ defmodule VestaboardAgent.Agents.ConversationalAgent do
   def keywords, do: []
 
   @impl true
-  def description, do: "Answer knowledge and trivia questions (facts, history, science, definitions)"
+  def description,
+    do: "Answer knowledge and trivia questions (facts, history, science, definitions)"
 
   @impl true
   def handle(prompt, context) do

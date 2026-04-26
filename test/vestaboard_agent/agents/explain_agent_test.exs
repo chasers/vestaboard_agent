@@ -29,7 +29,9 @@ defmodule VestaboardAgent.Agents.ExplainAgentTest do
 
   describe "handle/2 — no prior routing" do
     test "dispatches a message and returns :done when no prompt has been routed yet" do
-      assert {:ok, :done} = ExplainAgent.handle("explain that", %{dispatch_fn: capture_dispatch()})
+      assert {:ok, :done} =
+               ExplainAgent.handle("explain that", %{dispatch_fn: capture_dispatch()})
+
       assert_receive {:dispatched, text}
       assert String.contains?(text, "No prompts")
     end
@@ -37,8 +39,14 @@ defmodule VestaboardAgent.Agents.ExplainAgentTest do
 
   describe "handle/2 — keyword routing" do
     test "explains a keyword-routed decision" do
-      :ets.insert(:routing_info, {:last, %{prompt: "Lakers score", agent: "sports", method: :keyword, confidence: nil}})
-      assert {:ok, :done} = ExplainAgent.handle("explain that", %{dispatch_fn: capture_dispatch()})
+      :ets.insert(
+        :routing_info,
+        {:last, %{prompt: "Lakers score", agent: "sports", method: :keyword, confidence: nil}}
+      )
+
+      assert {:ok, :done} =
+               ExplainAgent.handle("explain that", %{dispatch_fn: capture_dispatch()})
+
       assert_receive {:dispatched, text}
       assert String.contains?(text, "Lakers score")
       assert String.contains?(text, "sports")
@@ -48,8 +56,20 @@ defmodule VestaboardAgent.Agents.ExplainAgentTest do
 
   describe "handle/2 — LLM routing" do
     test "explains a high-confidence LLM decision with percentage" do
-      :ets.insert(:routing_info, {:last, %{prompt: "who invented the phone?", agent: "conversational", method: :llm, confidence: 0.87}})
-      assert {:ok, :done} = ExplainAgent.handle("why did you do that", %{dispatch_fn: capture_dispatch()})
+      :ets.insert(
+        :routing_info,
+        {:last,
+         %{
+           prompt: "who invented the phone?",
+           agent: "conversational",
+           method: :llm,
+           confidence: 0.87
+         }}
+      )
+
+      assert {:ok, :done} =
+               ExplainAgent.handle("why did you do that", %{dispatch_fn: capture_dispatch()})
+
       assert_receive {:dispatched, text}
       assert String.contains?(text, "conversational")
       assert String.contains?(text, "87%")
@@ -58,16 +78,29 @@ defmodule VestaboardAgent.Agents.ExplainAgentTest do
 
   describe "handle/2 — fallback routing" do
     test "explains a low-confidence fallback with percentage" do
-      :ets.insert(:routing_info, {:last, %{prompt: "show a random gif", agent: "dynamic", method: :fallback, confidence: 0.3}})
-      assert {:ok, :done} = ExplainAgent.handle("what just happened", %{dispatch_fn: capture_dispatch()})
+      :ets.insert(
+        :routing_info,
+        {:last,
+         %{prompt: "show a random gif", agent: "dynamic", method: :fallback, confidence: 0.3}}
+      )
+
+      assert {:ok, :done} =
+               ExplainAgent.handle("what just happened", %{dispatch_fn: capture_dispatch()})
+
       assert_receive {:dispatched, text}
       assert String.contains?(text, "dynamic")
       assert String.contains?(text, "30%")
     end
 
     test "explains a nil-confidence fallback (LLM unavailable)" do
-      :ets.insert(:routing_info, {:last, %{prompt: "do something", agent: "dynamic", method: :fallback, confidence: nil}})
-      assert {:ok, :done} = ExplainAgent.handle("explain that", %{dispatch_fn: capture_dispatch()})
+      :ets.insert(
+        :routing_info,
+        {:last, %{prompt: "do something", agent: "dynamic", method: :fallback, confidence: nil}}
+      )
+
+      assert {:ok, :done} =
+               ExplainAgent.handle("explain that", %{dispatch_fn: capture_dispatch()})
+
       assert_receive {:dispatched, text}
       assert String.contains?(text, "dynamic")
       assert String.contains?(text, "unavailable")
