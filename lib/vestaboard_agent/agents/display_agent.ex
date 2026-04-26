@@ -15,6 +15,11 @@ defmodule VestaboardAgent.Agents.DisplayAgent do
   def keywords, do: ["display"]
 
   @impl true
+  def description,
+    do:
+      "Render verbatim text on the board — use only when the user provides the exact words to show"
+
+  @impl true
   def handle(prompt, _context) do
     text =
       prompt

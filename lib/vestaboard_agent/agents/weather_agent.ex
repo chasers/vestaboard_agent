@@ -18,6 +18,9 @@ defmodule VestaboardAgent.Agents.WeatherAgent do
     do: ["weather", "forecast", "temperature", "temp", "outside", "how hot", "how cold"]
 
   @impl true
+  def description, do: "Fetch and display current weather conditions"
+
+  @impl true
   def handle(_prompt, context) do
     Weather.run(context)
   end

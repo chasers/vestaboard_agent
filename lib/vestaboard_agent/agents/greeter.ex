@@ -18,6 +18,9 @@ defmodule VestaboardAgent.Agents.Greeter do
     do: ["greet", "greeting", "hello", "good morning", "good afternoon", "good evening"]
 
   @impl true
+  def description, do: "Show a time-appropriate greeting on the board"
+
+  @impl true
   def handle(_prompt, context) do
     ctx = Map.put_new(context, :now, DateTime.utc_now())
     Greeting.run(ctx)

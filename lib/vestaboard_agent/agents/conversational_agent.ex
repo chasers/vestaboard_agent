@@ -21,6 +21,10 @@ defmodule VestaboardAgent.Agents.ConversationalAgent do
   def keywords, do: []
 
   @impl true
+  def description,
+    do: "Answer knowledge and trivia questions (facts, history, science, definitions)"
+
+  @impl true
   def handle(prompt, context) do
     llm_opts = Map.get(context, :llm_opts, [])
 

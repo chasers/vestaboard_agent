@@ -12,6 +12,9 @@ defmodule VestaboardAgent.Agent do
   @doc "Keywords that trigger this agent when found in a user prompt."
   @callback keywords() :: [String.t()]
 
+  @doc "One-line description used in the LLM routing prompt."
+  @callback description() :: String.t()
+
   @doc """
   Handle a user prompt.
 

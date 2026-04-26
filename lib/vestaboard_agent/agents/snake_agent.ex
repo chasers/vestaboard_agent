@@ -29,6 +29,9 @@ defmodule VestaboardAgent.Agents.SnakeAgent do
   def keywords, do: ["snake"]
 
   @impl true
+  def description, do: "Play an LLM-driven Snake game on the board"
+
+  @impl true
   def handle(_prompt, context) do
     if acquire_lock() do
       try do

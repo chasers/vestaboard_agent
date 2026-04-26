@@ -83,33 +83,54 @@ defmodule VestaboardAgent.Clients.AnthropicTest do
   end
 
   describe "route_agent/3" do
-    @agents_meta [{"greeter", ["hello", "greet"]}, {"clock", ["time", "clock"]}]
+    @agents_meta [
+      {"greeter", "Show a greeting", ["hello", "greet"]},
+      {"clock", "Show the current time", ["time", "clock"]}
+    ]
 
-    test "returns the agent name from the LLM response" do
+    test "returns the agent name and confidence from the LLM response" do
       opts =
         opts_with_stub(fn ->
-          %{"content" => [%{"type" => "text", "text" => "greeter"}]}
+          %{"content" => [%{"type" => "text", "text" => "greeter:0.9"}]}
         end)
 
-      assert {:ok, "greeter"} = Anthropic.route_agent("say hi", @agents_meta, opts)
+      assert {:ok, "greeter", 0.9} = Anthropic.route_agent("say hi", @agents_meta, opts)
     end
 
     test "downcases and trims the returned name" do
       opts =
         opts_with_stub(fn ->
-          %{"content" => [%{"type" => "text", "text" => "  Greeter  "}]}
+          %{"content" => [%{"type" => "text", "text" => "  Greeter:0.8  "}]}
         end)
 
-      assert {:ok, "greeter"} = Anthropic.route_agent("say hi", @agents_meta, opts)
+      assert {:ok, "greeter", 0.8} = Anthropic.route_agent("say hi", @agents_meta, opts)
+    end
+
+    test "defaults confidence to 1.0 when not present in response" do
+      opts =
+        opts_with_stub(fn ->
+          %{"content" => [%{"type" => "text", "text" => "greeter"}]}
+        end)
+
+      assert {:ok, "greeter", 1.0} = Anthropic.route_agent("say hi", @agents_meta, opts)
     end
 
     test "returns dynamic when the LLM says dynamic" do
       opts =
         opts_with_stub(fn ->
-          %{"content" => [%{"type" => "text", "text" => "dynamic"}]}
+          %{"content" => [%{"type" => "text", "text" => "dynamic:0.7"}]}
         end)
 
-      assert {:ok, "dynamic"} = Anthropic.route_agent("do something odd", @agents_meta, opts)
+      assert {:ok, "dynamic", 0.7} = Anthropic.route_agent("do something odd", @agents_meta, opts)
+    end
+
+    test "clamps confidence to 0.0–1.0 range" do
+      opts =
+        opts_with_stub(fn ->
+          %{"content" => [%{"type" => "text", "text" => "greeter:1.5"}]}
+        end)
+
+      assert {:ok, "greeter", 1.0} = Anthropic.route_agent("say hi", @agents_meta, opts)
     end
 
     test "returns missing_api_key when no key configured" do
@@ -128,19 +149,26 @@ defmodule VestaboardAgent.Clients.AnthropicTest do
     end
 
     test "handles agents with no keywords" do
-      agents_meta = [{"dynamic", []}, {"greeter", ["hello"]}]
+      agents_meta = [
+        {"dynamic", "Fetch live data or run custom tools", []},
+        {"greeter", "Show a greeting", ["hello"]}
+      ]
 
       opts =
         opts_with_stub(fn ->
-          %{"content" => [%{"type" => "text", "text" => "greeter"}]}
+          %{"content" => [%{"type" => "text", "text" => "greeter:0.85"}]}
         end)
 
-      assert {:ok, "greeter"} = Anthropic.route_agent("say hello", agents_meta, opts)
+      assert {:ok, "greeter", 0.85} = Anthropic.route_agent("say hello", agents_meta, opts)
     end
 
     test "includes history in routing prompt when provided" do
       parent = self()
-      agents_meta = [{"clock", ["time"]}, {"weather", ["weather"]}]
+
+      agents_meta = [
+        {"clock", "Show the current time", ["time"]},
+        {"weather", "Show current weather", ["weather"]}
+      ]
 
       opts = [
         history: [%{prompt: "show the clock", text: "12:34 PM", render_opts: []}],
@@ -149,11 +177,11 @@ defmodule VestaboardAgent.Clients.AnthropicTest do
           decoded = Jason.decode!(body)
           prompt_text = get_in(decoded, ["messages", Access.at(0), "content"])
           send(parent, {:prompt, prompt_text})
-          Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "clock"}]})
+          Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "clock:0.9"}]})
         end
       ]
 
-      assert {:ok, "clock"} = Anthropic.route_agent("do that again", agents_meta, opts)
+      assert {:ok, "clock", _} = Anthropic.route_agent("do that again", agents_meta, opts)
 
       assert_receive {:prompt, prompt_text}
       assert String.contains?(prompt_text, "show the clock")

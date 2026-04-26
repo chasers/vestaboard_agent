@@ -137,20 +137,20 @@ defmodule VestaboardAgent.Clients.Anthropic do
   @doc """
   Ask the LLM which registered agent should handle `prompt`.
 
-  `agents_meta` is a list of `{name_string, keywords_list}` tuples built from
-  the registered agents. Returns `{:ok, agent_name_string}` or `{:error, reason}`.
-  The returned name is always downcased and trimmed.
+  `agents_meta` is a list of `{name_string, description_string, keywords_list}` tuples
+  built from the registered agents. Returns `{:ok, agent_name_string, confidence}` where
+  `confidence` is a 0.0–1.0 float, or `{:error, reason}`.
 
   Pass `history:` in opts (list of `%{prompt, text, render_opts}` maps, newest
   first) to help the LLM resolve follow-ups like "do that again".
   """
-  @spec route_agent(String.t(), [{String.t(), [String.t()]}], keyword()) ::
-          {:ok, String.t()} | {:error, term()}
+  @spec route_agent(String.t(), [{String.t(), String.t(), [String.t()]}], keyword()) ::
+          {:ok, String.t(), float()} | {:error, term()}
   def route_agent(prompt, agents_meta, opts \\ []) do
     history = Keyword.get(opts, :history, [])
 
-    with {:ok, name} <- complete(routing_prompt(prompt, agents_meta, history), opts) do
-      {:ok, name |> String.trim() |> String.downcase()}
+    with {:ok, raw} <- complete(routing_prompt(prompt, agents_meta, history), opts) do
+      parse_routing_response(raw)
     end
   end
 
@@ -223,8 +223,8 @@ defmodule VestaboardAgent.Clients.Anthropic do
     agent_list =
       agents_meta
       |> Enum.map(fn
-        {name, []} -> "- #{name}"
-        {name, kws} -> "- #{name}: #{Enum.join(kws, ", ")}"
+        {name, desc, []} -> "- #{name}: #{desc}"
+        {name, desc, kws} -> "- #{name}: #{desc} [keywords: #{Enum.join(kws, ", ")}]"
       end)
       |> Enum.join("\n")
 
@@ -257,8 +257,29 @@ defmodule VestaboardAgent.Clients.Anthropic do
     - If the prompt needs live data or computation not covered by a specific handler
       (e.g. "show BTC price", "display a countdown to Friday"), reply with "dynamic".
 
-    Reply with ONLY the handler name that best matches.
+    Reply with ONLY: handler_name:confidence
+    where confidence is 0.0–1.0 (your certainty this is the right handler).
+    Example: weather:0.9
     """
+  end
+
+  defp parse_routing_response(raw) do
+    case String.split(String.trim(raw), ":", parts: 2) do
+      [name, conf_str] ->
+        confidence =
+          case Float.parse(conf_str) do
+            {score, _} -> min(max(score, 0.0), 1.0)
+            :error -> 1.0
+          end
+
+        {:ok, String.downcase(name), confidence}
+
+      [name] ->
+        {:ok, String.downcase(name), 1.0}
+
+      _ ->
+        {:error, :bad_response}
+    end
   end
 
   defp script_prompt(task_description) do
