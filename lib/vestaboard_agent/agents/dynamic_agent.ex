@@ -26,6 +26,10 @@ defmodule VestaboardAgent.Agents.DynamicAgent do
   @impl true
   def keywords, do: []
 
+  @impl true
+  def description,
+    do: "Fetch live data or run computations not covered by other agents (prices, countdowns, custom tools)"
+
   @default_retry_budget_ms 30_000
 
   @impl true

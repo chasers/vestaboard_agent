@@ -20,6 +20,7 @@ defmodule VestaboardAgent.Agent.Registry do
     ConversationalAgent,
     DisplayAgent,
     DynamicAgent,
+    ExplainAgent,
     Greeter,
     ScheduleAgent,
     SnakeAgent,
@@ -29,6 +30,8 @@ defmodule VestaboardAgent.Agent.Registry do
 
   alias VestaboardAgent.Clients.Anthropic, as: LLM
 
+  @routing_confidence_threshold 0.55
+
   @default_agents [
     DisplayAgent,
     Greeter,
@@ -36,6 +39,7 @@ defmodule VestaboardAgent.Agent.Registry do
     SportsAgent,
     ScheduleAgent,
     SnakeAgent,
+    ExplainAgent,
     ConversationalAgent,
     DynamicAgent
   ]
@@ -80,27 +84,49 @@ defmodule VestaboardAgent.Agent.Registry do
   def resolve(prompt, context \\ %{}) do
     case route(prompt) do
       {:ok, agent} ->
+        record_routing(prompt, agent, :keyword, nil)
         {:ok, agent}
 
       {:error, :no_match} ->
         llm_opts = Map.get(context, :llm_opts, [])
         history = Map.get(context, :history, [])
-        agents_meta = Enum.map(agents(), fn a -> {a.name(), a.keywords()} end)
+        agents_meta = Enum.map(agents(), fn a -> {a.name(), a.description(), a.keywords()} end)
         routing_opts = Keyword.put(llm_opts, :history, history)
 
         case LLM.route_agent(prompt, agents_meta, routing_opts) do
-          {:ok, name} ->
-            case find_by_name(name) do
-              {:ok, agent} -> {:ok, agent}
-              :error -> {:ok, DynamicAgent}
-            end
+          {:ok, name, confidence} when confidence >= @routing_confidence_threshold ->
+            agent =
+              case find_by_name(name) do
+                {:ok, a} -> a
+                :error -> DynamicAgent
+              end
+
+            record_routing(prompt, agent, :llm, confidence)
+            {:ok, agent}
+
+          {:ok, _name, low_confidence} ->
+            record_routing(prompt, DynamicAgent, :fallback, low_confidence)
+            {:ok, DynamicAgent}
 
           {:error, :missing_api_key} ->
             {:error, :no_match}
 
           {:error, _} ->
+            record_routing(prompt, DynamicAgent, :fallback, nil)
             {:ok, DynamicAgent}
         end
+    end
+  end
+
+  @doc """
+  Return the routing info for the most recently resolved prompt, or `nil` if
+  no prompt has been routed yet.
+  """
+  @spec last_routing() :: map() | nil
+  def last_routing do
+    case :ets.lookup(:routing_info, :last) do
+      [{:last, info}] -> info
+      [] -> nil
     end
   end
 
@@ -126,6 +152,7 @@ defmodule VestaboardAgent.Agent.Registry do
   def init(_opts) do
     init_ets_table(:snake_locks)
     init_ets_table(:display_lock)
+    init_ets_table(:routing_info)
     {:ok, @default_agents}
   end
 
@@ -143,11 +170,23 @@ defmodule VestaboardAgent.Agent.Registry do
   def handle_call({:route, prompt}, _from, agents) do
     normalized = String.downcase(prompt)
 
-    result =
-      Enum.find_value(agents, {:error, :no_match}, fn agent ->
-        match? = Enum.any?(agent.keywords(), &String.contains?(normalized, String.downcase(&1)))
-        if match?, do: {:ok, agent}
+    scored =
+      agents
+      |> Enum.map(fn agent ->
+        score = Enum.count(agent.keywords(), &String.contains?(normalized, String.downcase(&1)))
+        {agent, score}
       end)
+      |> Enum.filter(fn {_agent, score} -> score > 0 end)
+
+    result =
+      case scored do
+        [] ->
+          {:error, :no_match}
+
+        _ ->
+          {agent, _} = Enum.max_by(scored, fn {_, score} -> score end)
+          {:ok, agent}
+      end
 
     {:reply, result, agents}
   end
@@ -158,6 +197,13 @@ defmodule VestaboardAgent.Agent.Registry do
     :ets.new(name, [:set, :public, :named_table])
   rescue
     ArgumentError -> :ok
+  end
+
+  defp record_routing(_prompt, ExplainAgent, _method, _confidence), do: :ok
+
+  defp record_routing(prompt, agent, method, confidence) do
+    info = %{prompt: prompt, agent: agent.name(), method: method, confidence: confidence}
+    :ets.insert(:routing_info, {:last, info})
   end
 
   defp find_by_name(name) do

@@ -230,6 +230,9 @@ defmodule VestaboardAgent.Agents.SportsAgent do
     ]
 
   @impl true
+  def description, do: "Show live or final sports scores via ESPN"
+
+  @impl true
   def handle(prompt, context) do
     {sport, league} = parse_sport(prompt)
     team = parse_team(prompt)

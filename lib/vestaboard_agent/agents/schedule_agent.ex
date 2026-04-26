@@ -40,6 +40,9 @@ defmodule VestaboardAgent.Agents.ScheduleAgent do
   def keywords, do: ["schedule", "every", "cron", "timer", "remind"]
 
   @impl true
+  def description, do: "Run a tool on a repeating schedule (e.g. show the clock every 30 seconds)"
+
+  @impl true
   def handle(prompt, context) do
     llm_opts = Map.get(context, :llm_opts, [])
     tool_names = ToolRegistry.list() |> Enum.map(fn {name, _} -> Atom.to_string(name) end)

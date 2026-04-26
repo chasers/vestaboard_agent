@@ -8,7 +8,33 @@ defmodule VestaboardAgent.Agent.RegistryTest do
     @impl true
     def name, do: "weather"
     @impl true
+    def description, do: "Show weather"
+    @impl true
     def keywords, do: ["weather", "forecast"]
+    @impl true
+    def handle(_prompt, _context), do: {:ok, :done}
+  end
+
+  defmodule SportsAgent do
+    @behaviour VestaboardAgent.Agent
+    @impl true
+    def name, do: "sports"
+    @impl true
+    def description, do: "Show sports scores"
+    @impl true
+    def keywords, do: ["game", "score", "nba"]
+    @impl true
+    def handle(_prompt, _context), do: {:ok, :done}
+  end
+
+  defmodule ScheduleAgent do
+    @behaviour VestaboardAgent.Agent
+    @impl true
+    def name, do: "schedule"
+    @impl true
+    def description, do: "Schedule recurring tool"
+    @impl true
+    def keywords, do: ["every", "schedule"]
     @impl true
     def handle(_prompt, _context), do: {:ok, :done}
   end
@@ -50,6 +76,19 @@ defmodule VestaboardAgent.Agent.RegistryTest do
     test "returns no_match when no agent matches" do
       assert {:error, :no_match} = Registry.route("do something unknown xyz")
     end
+
+    test "picks the agent with the most keyword matches, not the first registered" do
+      Registry.register(ScheduleAgent)
+      Registry.register(SportsAgent)
+
+      # "game" and "score" match SportsAgent (2 hits); "every" matches ScheduleAgent (1 hit)
+      assert {:ok, SportsAgent} = Registry.route("show the game score every hour")
+    end
+
+    test "single keyword match still routes correctly" do
+      Registry.register(SportsAgent)
+      assert {:ok, SportsAgent} = Registry.route("show me the nba standings")
+    end
   end
 
   describe "resolve/2" do
@@ -65,7 +104,7 @@ defmodule VestaboardAgent.Agent.RegistryTest do
       Application.put_env(:vestaboard_agent, :llm, api_key: "test-key")
 
       llm_stub = fn conn ->
-        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "greeter"}]})
+        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "greeter:0.9"}]})
       end
 
       assert {:ok, VestaboardAgent.Agents.Greeter} =
@@ -76,11 +115,22 @@ defmodule VestaboardAgent.Agent.RegistryTest do
       Application.put_env(:vestaboard_agent, :llm, api_key: "test-key")
 
       llm_stub = fn conn ->
-        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "no_such_agent"}]})
+        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "no_such_agent:0.9"}]})
       end
 
       assert {:ok, VestaboardAgent.Agents.DynamicAgent} =
                Registry.resolve("xyzzy completely unknown", %{llm_opts: [plug: llm_stub]})
+    end
+
+    test "falls back to DynamicAgent when LLM confidence is below threshold" do
+      Application.put_env(:vestaboard_agent, :llm, api_key: "test-key")
+
+      llm_stub = fn conn ->
+        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "greeter:0.3"}]})
+      end
+
+      assert {:ok, VestaboardAgent.Agents.DynamicAgent} =
+               Registry.resolve("xyzzy plugh low confidence", %{llm_opts: [plug: llm_stub]})
     end
   end
 
@@ -93,7 +143,7 @@ defmodule VestaboardAgent.Agent.RegistryTest do
       Application.put_env(:vestaboard_agent, :llm, api_key: "test-key")
 
       llm_stub = fn conn ->
-        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "greeter"}]})
+        Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "greeter:0.9"}]})
       end
 
       result =
@@ -122,7 +172,7 @@ defmodule VestaboardAgent.Agent.RegistryTest do
 
         text =
           case n do
-            0 -> "unknown_agent"
+            0 -> "unknown_agent:0.9"
             1 -> "return 'hello'"
             _ -> "YES"
           end

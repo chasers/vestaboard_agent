@@ -17,6 +17,7 @@ YYYY-MM-DD_NN_<slug>.md
 | Plan | File |
 |---|---|
 | SportsAgent — live/final ESPN scores | [2026-04-25_01_sports_score_agent.md](.plans/2026-04-25_01_sports_score_agent.md) |
+| Phase 16 — Agent Routing Improvements | [2026-04-26_01_routing_improvements.md](.plans/2026-04-26_01_routing_improvements.md) |
 
 ---
 
@@ -279,10 +280,10 @@ The current keyword + LLM routing is brittle. Improve confidence, observability,
 
 | | Item | Notes |
 |---|---|---|
-| ⬜ | **16a** Routing confidence score | LLM returns agent name + confidence; route to DynamicAgent below a threshold |
-| ⬜ | **16b** Routing evaluation dataset | A fixed set of prompts with expected agent labels; `mix test.e2e` asserts routing accuracy |
-| ⬜ | **16c** Embedding-based routing | Pre-embed agent descriptions; route by cosine similarity as a faster/cheaper first pass |
-| ⬜ | **16d** Routing trace & explain | Log which agent was selected and why; surface this in `/status` |
+| ✅ | **16a** Routing confidence score | LLM returns agent name + confidence; route to DynamicAgent below a threshold |
+| ✅ | **16b** Routing evaluation dataset | A fixed set of prompts with expected agent labels; `mix test.e2e` asserts routing accuracy |
+| ✅ | **16c** Scored keyword routing | Score all agents by keyword overlap; pick best match instead of first match |
+| ✅ | **16d** `ExplainAgent` — explains last routing decision | "explain that" / "why did you" triggers an agent that describes which agent was picked and why |
 
 ---
 
