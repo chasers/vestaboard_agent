@@ -39,6 +39,4 @@ Update this file whenever something new is learned.
 
 ## Active Branches
 
-| Branch                          | Purpose                                                      |
-| ------------------------------- | ------------------------------------------------------------ |
-| `phase/16-routing-improvements` | Phase 16 — routing confidence, eval dataset, trace & explain |
+None.
