@@ -307,3 +307,11 @@ Display live or final sports scores via ESPN's unofficial scoreboard API (no key
 - [ ] ExDoc documentation site
 - [ ] Cloud API parity (transitions, `format_text`)
 - [ ] Multi-board support
+
+---
+
+## Cleanup
+
+| | Item | Notes |
+|---|---|---|
+| ⬜ | Fix `DynamicAgent.derive_tool_name/1` atom creation | `String.to_atom/1` on user input exhausts the atom table; change tool names to plain strings throughout |

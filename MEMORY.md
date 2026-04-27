@@ -31,6 +31,12 @@ Update this file whenever something new is learned.
 
 ---
 
+## Security
+
+- **Never call `String.to_atom/1` on user input.** Atoms are not GC'd; exhausting the atom table crashes the VM. Use plain strings, or `String.to_existing_atom/1` if an atom is truly needed. Known instance: `DynamicAgent.derive_tool_name/1` (tracked in Cleanup section of PLAN.md).
+
+---
+
 ## Agent Notes
 
 - `ExplainAgent` reads `Registry.last_routing/0` from an ETS table (`:routing_info`). Every `Registry.resolve/2` call writes to it — method is `:keyword`, `:llm`, or `:fallback`; confidence is a float or nil.
